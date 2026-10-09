@@ -36,6 +36,11 @@ const PIECE_IMAGE = {
   },
 };
 
+// Celeste (Negras) arriba, Rosa (Blancas) abajo: se recorre el tablero
+// de la fila 7 a la 0 en vez de 0 a 7, solo para dibujarlo — la lógica
+// de movimientos sigue usando las filas reales que maneja el backend.
+const ROW_ORDER = [7, 6, 5, 4, 3, 2, 1, 0];
+
 function App() {
   const [board, setBoard] = useState(null);
   const [turn, setTurn] = useState("WHITE");
@@ -108,9 +113,11 @@ function App() {
   if (connectionError) {
     return (
       <div className="app">
-        <h1>🐾 Ajedrez Crossing 🐾</h1>
+        <div className="title-sticker">
+          <h1>Ajedrez Crossing</h1>
+        </div>
         <p className="error">
-          No me pude conectar al backend en <code>http://localhost:8081</code>.
+          No me pude conectar al backend en <code>http://localhost:8080</code>.
           <br />
           Fijate que el <code>WebMain.java</code> esté corriendo en VS Code.
         </p>
@@ -125,7 +132,11 @@ function App() {
 
   return (
     <div className="app">
-      <h1>🐾 Ajedrez Crossing 🐾</h1>
+      <div className="title-sticker">
+        <span className="paw paw-left">🐾</span>
+        <h1>Ajedrez Crossing</h1>
+        <span className="paw paw-right">🐾</span>
+      </div>
 
       <div className="status">
         <span className={`turn-badge ${turn === "WHITE" ? "pink" : "cyan"}`}>
@@ -137,35 +148,41 @@ function App() {
         {message && <span className="message">{message}</span>}
       </div>
 
-      <div className="board">
-        {board.map((rowPieces, row) => (
-          <div className="board-row" key={row}>
-            {rowPieces.map((piece, col) => {
-              const isDark = (row + col) % 2 === 1;
-              const isSelected =
-                selected && selected.row === row && selected.col === col;
-              return (
-                <div
-                  key={col}
-                  className={`square ${isDark ? "dark" : "light"} ${
-                    isSelected ? "selected" : ""
-                  }`}
-                  onClick={() => handleSquareClick(row, col)}
-                >
-                  {piece && (
-                    <img
-                      className="piece"
-                      src={PIECE_IMAGE[piece.color][piece.type]}
-                      alt={`${piece.type} ${piece.color}`}
-                      title={piece.type}
-                      draggable={false}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ))}
+      <div className="board-frame">
+        <span className="side-tag side-tag-top">Celeste</span>
+
+        <div className="board">
+          {ROW_ORDER.map((row) => (
+            <div className="board-row" key={row}>
+              {board[row].map((piece, col) => {
+                const isDark = (row + col) % 2 === 1;
+                const isSelected =
+                  selected && selected.row === row && selected.col === col;
+                return (
+                  <div
+                    key={col}
+                    className={`square ${isDark ? "dark" : "light"} ${
+                      isSelected ? "selected" : ""
+                    }`}
+                    onClick={() => handleSquareClick(row, col)}
+                  >
+                    {piece && (
+                      <img
+                        className="piece"
+                        src={PIECE_IMAGE[piece.color][piece.type]}
+                        alt={`${piece.type} ${piece.color}`}
+                        title={piece.type}
+                        draggable={false}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        <span className="side-tag side-tag-bottom">Rosa</span>
       </div>
 
       <button className="reset-btn" onClick={handleReset}>
