@@ -2,15 +2,38 @@ import { useEffect, useState } from "react";
 import { getState, postMove, resetGame } from "./api";
 import "./App.css";
 
-// Animalitos genéricos por tipo de pieza, mismo bicho para ambos bandos,
-// cambia el color de fondo (rosa / celeste) según el color de la pieza.
-const PIECE_EMOJI = {
-  ROOK: "🦫",
-  KNIGHT: "🐴",
-  BISHOP: "🦉",
-  QUEEN: "🦢",
-  KING: "🦁",
-  PAWN: "🐿️",
+import rookPink from "./assets/pieces/rosa/rookPink.png";
+import knightPink from "./assets/pieces/rosa/knightPink.png";
+import bishopPink from "./assets/pieces/rosa/bishopPink.png";
+import queenPink from "./assets/pieces/rosa/queenPink.png";
+import kingPink from "./assets/pieces/rosa/kingPink.png";
+import pawnPink from "./assets/pieces/rosa/pawnPink.png";
+
+import rookCeleste from "./assets/pieces/celeste/rookLightBlue.png";
+import knightCeleste from "./assets/pieces/celeste/knightLightBlue.png";
+import bishopCeleste from "./assets/pieces/celeste/bishopLightBlue.png";
+import queenCeleste from "./assets/pieces/celeste/queenLightBlue.png";
+import kingCeleste from "./assets/pieces/celeste/kingLightBlue.png";
+import pawnCeleste from "./assets/pieces/celeste/pawnLightBlue.png";
+
+// Personajes de Animal Crossing por tipo de pieza y color (WHITE = rosa, BLACK = celeste)
+const PIECE_IMAGE = {
+  WHITE: {
+    ROOK: rookPink,
+    KNIGHT: knightPink,
+    BISHOP: bishopPink,
+    QUEEN: queenPink,
+    KING: kingPink,
+    PAWN: pawnPink,
+  },
+  BLACK: {
+    ROOK: rookCeleste,
+    KNIGHT: knightCeleste,
+    BISHOP: bishopCeleste,
+    QUEEN: queenCeleste,
+    KING: kingCeleste,
+    PAWN: pawnCeleste,
+  },
 };
 
 function App() {
@@ -87,7 +110,7 @@ function App() {
       <div className="app">
         <h1>🐾 Ajedrez Crossing 🐾</h1>
         <p className="error">
-          No me pude conectar al backend en <code>http://localhost:8080</code>.
+          No me pude conectar al backend en <code>http://localhost:8081</code>.
           <br />
           Fijate que el <code>WebMain.java</code> esté corriendo en VS Code.
         </p>
@@ -130,14 +153,13 @@ function App() {
                   onClick={() => handleSquareClick(row, col)}
                 >
                   {piece && (
-                    <span
-                      className={`piece ${
-                        piece.color === "WHITE" ? "side-pink" : "side-cyan"
-                      }`}
+                    <img
+                      className="piece"
+                      src={PIECE_IMAGE[piece.color][piece.type]}
+                      alt={`${piece.type} ${piece.color}`}
                       title={piece.type}
-                    >
-                      {PIECE_EMOJI[piece.type]}
-                    </span>
+                      draggable={false}
+                    />
                   )}
                 </div>
               );

@@ -72,12 +72,11 @@ h1 {
 }
 
 .square {
-  width: 56px;
-  height: 56px;
+  width: 68px;
+  height: 68px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.8rem;
   cursor: pointer;
 }
 
@@ -93,21 +92,11 @@ h1 {
 }
 
 .piece {
-  width: 84%;
-  height: 84%;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.piece.side-pink {
-  background: radial-gradient(circle at 35% 28%, #ffe3f2, #ff8fc4);
-  border: 3px solid #e85fa8;
-}
-.piece.side-cyan {
-  background: radial-gradient(circle at 35% 28%, #e2fbff, #6fdcf2);
-  border: 3px solid #22b8d6;
+  width: 92%;
+  height: 92%;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.35));
+  pointer-events: none; /* los clicks los agarra el .square */
 }
 
 .reset-btn {
