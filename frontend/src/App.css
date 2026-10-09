@@ -197,6 +197,7 @@ body {
 }
 
 .square {
+  position: relative;
   width: min(11vw, 68px);
   height: min(11vw, 68px);
   display: flex;
@@ -214,6 +215,22 @@ body {
 .square.selected {
   outline: 4px solid #ffd23f;
   outline-offset: -4px;
+}
+.square.possible-move::after {
+  content: "";
+  position: absolute;
+  width: 22%;
+  height: 22%;
+  border-radius: 50%;
+  background: rgba(107, 143, 71, 0.78);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.square.possible-capture::after {
+  width: 76%;
+  height: 76%;
+  background: transparent;
+  border: 4px solid rgba(107, 143, 71, 0.88);
+  box-shadow: inset 0 0 0 2px rgba(255, 246, 224, 0.65);
 }
 
 .piece {

@@ -41,6 +41,113 @@ const PIECE_IMAGE = {
 // de movimientos sigue usando las filas reales que maneja el backend.
 const ROW_ORDER = [7, 6, 5, 4, 3, 2, 1, 0];
 
+const BOARD_SIZE = 8;
+
+function isInsideBoard(row, col) {
+  return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE;
+}
+
+function getPossibleMoves(board, row, col) {
+  const piece = board[row][col];
+  if (!piece) return [];
+
+  const moves = [];
+  const addMove = (targetRow, targetCol) => {
+    if (!isInsideBoard(targetRow, targetCol)) return false;
+
+    const targetPiece = board[targetRow][targetCol];
+    if (!targetPiece) {
+      moves.push({ row: targetRow, col: targetCol });
+      return true;
+    }
+
+    if (targetPiece.color !== piece.color) {
+      moves.push({ row: targetRow, col: targetCol });
+    }
+    return false;
+  };
+
+  const addSlidingMoves = (directions) => {
+    directions.forEach(([rowStep, colStep]) => {
+      let targetRow = row + rowStep;
+      let targetCol = col + colStep;
+      while (addMove(targetRow, targetCol)) {
+        targetRow += rowStep;
+        targetCol += colStep;
+      }
+    });
+  };
+
+  if (piece.type === "PAWN") {
+    const direction = piece.color === "WHITE" ? 1 : -1;
+    const startRow = piece.color === "WHITE" ? 1 : 6;
+    const oneStepRow = row + direction;
+
+    if (isInsideBoard(oneStepRow, col) && !board[oneStepRow][col]) {
+      moves.push({ row: oneStepRow, col });
+      const twoStepRow = row + direction * 2;
+      if (row === startRow && !board[twoStepRow][col]) {
+        moves.push({ row: twoStepRow, col });
+      }
+    }
+
+    [-1, 1].forEach((colStep) => {
+      const targetRow = row + direction;
+      const targetCol = col + colStep;
+      if (
+        isInsideBoard(targetRow, targetCol) &&
+        board[targetRow][targetCol] &&
+        board[targetRow][targetCol].color !== piece.color
+      ) {
+        moves.push({ row: targetRow, col: targetCol });
+      }
+    });
+  }
+
+  if (piece.type === "KNIGHT") {
+    [
+      [-2, -1],
+      [-2, 1],
+      [-1, -2],
+      [-1, 2],
+      [1, -2],
+      [1, 2],
+      [2, -1],
+      [2, 1],
+    ].forEach(([rowStep, colStep]) => addMove(row + rowStep, col + colStep));
+  }
+
+  if (piece.type === "BISHOP" || piece.type === "QUEEN") {
+    addSlidingMoves([
+      [-1, -1],
+      [-1, 1],
+      [1, -1],
+      [1, 1],
+    ]);
+  }
+
+  if (piece.type === "ROOK" || piece.type === "QUEEN") {
+    addSlidingMoves([
+      [-1, 0],
+      [1, 0],
+      [0, -1],
+      [0, 1],
+    ]);
+  }
+
+  if (piece.type === "KING") {
+    for (let rowStep = -1; rowStep <= 1; rowStep += 1) {
+      for (let colStep = -1; colStep <= 1; colStep += 1) {
+        if (rowStep !== 0 || colStep !== 0) {
+          addMove(row + rowStep, col + colStep);
+        }
+      }
+    }
+  }
+
+  return moves;
+}
+
 function App() {
   const [board, setBoard] = useState(null);
   const [turn, setTurn] = useState("WHITE");
@@ -48,6 +155,15 @@ function App() {
   const [selected, setSelected] = useState(null); // { row, col }
   const [message, setMessage] = useState("");
   const [connectionError, setConnectionError] = useState(false);
+  const possibleMoves = selected
+    ? getPossibleMoves(board, selected.row, selected.col)
+    : [];
+
+  function isPossibleMove(row, col) {
+    return possibleMoves.some(
+      (move) => move.row === row && move.col === col
+    );
+  }
 
   function applyState(state) {
     setBoard(state.board);
@@ -85,6 +201,14 @@ function App() {
     // Click sobre la misma pieza: deseleccionar
     if (selected.row === row && selected.col === col) {
       setSelected(null);
+      return;
+    }
+
+    // Permitir cambiar la selección directamente a otra pieza propia
+    const piece = board[row][col];
+    if (piece && piece.color === turn) {
+      setSelected({ row, col });
+      setMessage("");
       return;
     }
 
@@ -158,11 +282,14 @@ function App() {
                 const isDark = (row + col) % 2 === 1;
                 const isSelected =
                   selected && selected.row === row && selected.col === col;
+                const isPossible = isPossibleMove(row, col);
                 return (
                   <div
                     key={col}
                     className={`square ${isDark ? "dark" : "light"} ${
                       isSelected ? "selected" : ""
+                    } ${isPossible ? "possible-move" : ""} ${
+                      isPossible && piece ? "possible-capture" : ""
                     }`}
                     onClick={() => handleSquareClick(row, col)}
                   >
