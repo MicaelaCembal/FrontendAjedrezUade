@@ -216,6 +216,11 @@ body {
   outline: 4px solid #ffd23f;
   outline-offset: -4px;
 }
+.square.checking-piece {
+  outline: 4px solid #e53935;
+  outline-offset: -4px;
+  box-shadow: inset 0 0 0 999px rgba(229, 57, 53, 0.2);
+}
 .square.possible-move::after {
   content: "";
   position: absolute;

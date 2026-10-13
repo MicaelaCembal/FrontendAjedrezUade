@@ -148,6 +148,82 @@ function getPossibleMoves(board, row, col) {
   return moves;
 }
 
+function cloneBoardWithMove(board, fromRow, fromCol, toRow, toCol) {
+  const nextBoard = board.map((boardRow) => [...boardRow]);
+  nextBoard[toRow][toCol] = nextBoard[fromRow][fromCol];
+  nextBoard[fromRow][fromCol] = null;
+  return nextBoard;
+}
+
+function findKing(board, color) {
+  for (let row = 0; row < BOARD_SIZE; row += 1) {
+    for (let col = 0; col < BOARD_SIZE; col += 1) {
+      const piece = board[row][col];
+      if (piece?.color === color && piece.type === "KING") {
+        return { row, col };
+      }
+    }
+  }
+  return null;
+}
+
+function isSquareAttackedBy(board, row, col, attackingColor) {
+  for (let attackerRow = 0; attackerRow < BOARD_SIZE; attackerRow += 1) {
+    for (let attackerCol = 0; attackerCol < BOARD_SIZE; attackerCol += 1) {
+      const piece = board[attackerRow][attackerCol];
+      if (
+        piece?.color === attackingColor &&
+        getPossibleMoves(board, attackerRow, attackerCol).some(
+          (move) => move.row === row && move.col === col
+        )
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function leavesKingInCheck(board, fromRow, fromCol, toRow, toCol, color) {
+  const nextBoard = cloneBoardWithMove(
+    board,
+    fromRow,
+    fromCol,
+    toRow,
+    toCol
+  );
+  const king = findKing(nextBoard, color);
+  return !king || isSquareAttackedBy(nextBoard, king.row, king.col, color === "WHITE" ? "BLACK" : "WHITE");
+}
+
+function getCheckingPiecePositions(board, color) {
+  const king = findKing(board, color);
+  if (!king) return [];
+
+  const positions = [];
+  const opponentColor = color === "WHITE" ? "BLACK" : "WHITE";
+  for (let row = 0; row < BOARD_SIZE; row += 1) {
+    for (let col = 0; col < BOARD_SIZE; col += 1) {
+      const piece = board[row][col];
+      if (
+        piece?.color === opponentColor &&
+        getPossibleMoves(board, row, col).some(
+          (move) => move.row === king.row && move.col === king.col
+        )
+      ) {
+        positions.push(`${row}-${col}`);
+      }
+    }
+  }
+  return positions;
+}
+
+const USER_COLOR = "WHITE";
+
+function isUserPiece(piece) {
+  return Boolean(piece && piece.color === USER_COLOR);
+}
+
 function App() {
   const [board, setBoard] = useState(null);
   const [turn, setTurn] = useState("WHITE");
@@ -155,9 +231,31 @@ function App() {
   const [selected, setSelected] = useState(null); // { row, col }
   const [message, setMessage] = useState("");
   const [connectionError, setConnectionError] = useState(false);
-  const possibleMoves = selected
-    ? getPossibleMoves(board, selected.row, selected.col)
-    : [];
+
+  // Estar en jaque no termina la partida: el jugador todavía debe poder
+  // mover para salir del jaque. Solo el jaque mate bloquea la interacción.
+  const isUserTurn = turn === USER_COLOR && gameState !== "CHECKMATE";
+  const checkingPiecePositions =
+    board && gameState === "CHECK"
+      ? getCheckingPiecePositions(board, turn)
+      : [];
+  const selectedPiece =
+    selected && board ? board[selected.row]?.[selected.col] : null;
+  const possibleMoves =
+    isUserTurn && isUserPiece(selectedPiece)
+      ? getPossibleMoves(board, selected.row, selected.col).filter(
+          (move) =>
+            gameState !== "CHECK" ||
+            !leavesKingInCheck(
+              board,
+              selected.row,
+              selected.col,
+              move.row,
+              move.col,
+              turn
+            )
+        )
+      : [];
 
   function isPossibleMove(row, col) {
     return possibleMoves.some(
@@ -176,7 +274,7 @@ function App() {
     try {
       const state = await getState();
       applyState(state);
-    } catch (err) {
+    } catch {
       setConnectionError(true);
     }
   }
@@ -188,10 +286,25 @@ function App() {
   async function handleSquareClick(row, col) {
     if (!board) return;
 
-    // Nada seleccionado todavía: seleccionar si hay una pieza propia ahí
+    // El jaque no termina la partida: todavía hay que poder responderlo.
+    if (!isUserTurn) {
+      return;
+    }
+
+    const clickedPiece = board[row][col];
+
+    // Nada seleccionado todavía: solo se puede seleccionar una pieza propia del usuario
     if (!selected) {
-      const piece = board[row][col];
-      if (piece && piece.color === turn) {
+      if (isUserPiece(clickedPiece)) {
+        const hasLegalResponse =
+          gameState !== "CHECK" ||
+          getPossibleMoves(board, row, col).some(
+            (move) => !leavesKingInCheck(board, row, col, move.row, move.col, turn)
+          );
+        if (!hasLegalResponse) {
+          setMessage("Esa pieza no puede resolver el jaque");
+          return;
+        }
         setSelected({ row, col });
         setMessage("");
       }
@@ -204,14 +317,24 @@ function App() {
       return;
     }
 
-    // Permitir cambiar la selección directamente a otra pieza propia
-    const piece = board[row][col];
-    if (piece && piece.color === turn) {
+    // Permitir cambiar la selección directamente a otra pieza propia del usuario
+    if (isUserPiece(clickedPiece)) {
+      const hasLegalResponse =
+        gameState !== "CHECK" ||
+        getPossibleMoves(board, row, col).some(
+          (move) => !leavesKingInCheck(board, row, col, move.row, move.col, turn)
+        );
+      if (!hasLegalResponse) {
+        setSelected(null);
+        setMessage("Esa pieza no puede resolver el jaque");
+        return;
+      }
       setSelected({ row, col });
       setMessage("");
       return;
     }
 
+    // Click en otra casilla (vacía o pieza rival para capturar): intentar mover
     const response = await postMove(selected.row, selected.col, row, col);
     applyState(response.state);
     setSelected(null);
@@ -281,8 +404,15 @@ function App() {
               {board[row].map((piece, col) => {
                 const isDark = (row + col) % 2 === 1;
                 const isSelected =
-                  selected && selected.row === row && selected.col === col;
+                  isUserTurn &&
+                  isUserPiece(piece) &&
+                  selected &&
+                  selected.row === row &&
+                  selected.col === col;
                 const isPossible = isPossibleMove(row, col);
+                const isCheckingPiece = checkingPiecePositions.includes(
+                  `${row}-${col}`
+                );
                 return (
                   <div
                     key={col}
@@ -290,7 +420,7 @@ function App() {
                       isSelected ? "selected" : ""
                     } ${isPossible ? "possible-move" : ""} ${
                       isPossible && piece ? "possible-capture" : ""
-                    }`}
+                    } ${isCheckingPiece ? "checking-piece" : ""}`}
                     onClick={() => handleSquareClick(row, col)}
                   >
                     {piece && (
