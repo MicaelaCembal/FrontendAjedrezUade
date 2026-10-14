@@ -456,6 +456,78 @@ body {
   text-align: center;
 }
 
+/* ---------- Reloj de ajedrez ---------- */
+
+.clocks {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.clock {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 14px;
+  background: var(--wood-dark);
+  border: 1px solid var(--wood-darker);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+  opacity: 0.6;
+  transform: scale(0.96);
+  transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s ease;
+}
+
+.clock-label {
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 700;
+  font-size: 0.68rem;
+  color: #fff6e0;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.clock-time {
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: #fff6e0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* El reloj de quien tiene el turno se agranda un poco y toma su color de
+   bando, para que se note de un vistazo a quién le está corriendo el tiempo. */
+.clock.active {
+  opacity: 1;
+  transform: scale(1);
+}
+.clock.active.pink {
+  background: var(--candy-pink);
+}
+.clock.active.cyan {
+  background: var(--candy-cyan);
+}
+.clock.active.cyan .clock-label,
+.clock.active.cyan .clock-time {
+  color: var(--ink);
+}
+
+/* Con 30 segundos o menos, el reloj activo palpita en rojo como alarma. */
+.clock.low.active {
+  animation: clockLowPulse 0.8s ease-in-out infinite;
+}
+@keyframes clockLowPulse {
+  0%,
+  100% {
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+  }
+  50% {
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2), 0 0 0 3px rgba(229, 57, 53, 0.65);
+  }
+}
+
 .tray-label {
   display: inline-block;
   margin: 0 0 6px;

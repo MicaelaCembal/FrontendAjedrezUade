@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { getState, postMove, resetGame, undoMove } from "./Api";
+import {
+  playMoveSound,
+  playCaptureSound,
+  playCheckSound,
+  playCheckmateSound,
+  playDrawSound,
+  playPromotionSound,
+  playTimeoutSound,
+} from "./sound";
 import "./App.css";
 
 import rookPink from "./assets/pieces/rosa/rookPink.png";
@@ -45,18 +54,19 @@ function toScreenRow(row) {
 
 const BOARD_SIZE = 8;
 
-// Los 5 fondos entre los que se puede elegir. Los dos ".webp" son fotos
-// propias (subidas por la usuaria a mano); los tres ".svg" son ilustraciones
-// originales (no son arte de Nintendo ni de ningún juego: un patrón de
-// hojitas, una isla y un bosque, dibujados de cero).
+// Los 5 fondos entre los que se puede elegir, todos con el mismo esquema de
+// nombre (fondo1..fondo5) para que sea fácil agregar/sacar uno después. Los
+// dos ".webp" son fotos propias (subidas por la usuaria a mano); los tres
+// ".svg" son ilustraciones originales (no son arte de Nintendo ni de ningún
+// juego: un patrón de hojitas, una isla y un bosque, dibujados de cero).
 const BACKGROUNDS = [
-  { id: "forest", label: "Bosque", file: "/backgrounds/forest-bg.svg", mode: "cover" },
-  { id: "scenery", label: "Isla", file: "/backgrounds/scenery-bg.svg", mode: "cover" },
-  { id: "leaves", label: "Hojitas", file: "/backgrounds/leaf-pattern.svg", mode: "tile" },
-  { id: "fondo1", label: "Fondo 1", file: "/backgrounds/fondo.webp", mode: "cover" },
-  { id: "fondo2", label: "Fondo 2", file: "/backgrounds/fondo2.webp", mode: "cover" },
+  { id: "fondo1", label: "Bosque", file: "/backgrounds/fondo1.svg", mode: "cover" },
+  { id: "fondo2", label: "Isla", file: "/backgrounds/fondo2.svg", mode: "cover" },
+  { id: "fondo3", label: "Hojitas", file: "/backgrounds/fondo3.svg", mode: "tile" },
+  { id: "fondo4", label: "Fondo 4", file: "/backgrounds/fondo4.webp", mode: "cover" },
+  { id: "fondo5", label: "Fondo 5", file: "/backgrounds/fondo5.webp", mode: "cover" },
 ];
-const DEFAULT_BACKGROUND_ID = "fondo2";
+const DEFAULT_BACKGROUND_ID = "fondo5";
 
 function loadSavedBackgroundId() {
   try {
@@ -266,6 +276,18 @@ function isUserPiece(piece) {
   return Boolean(piece && piece.color === USER_COLOR);
 }
 
+// Reloj de ajedrez: 10 minutos por lado, formato partida "rápida" estándar.
+// Es un reloj solo de frontend (el backend no sabe nada de esto), así que si
+// se refresca la página se reinicia; para esta app alcanza y sobra.
+const INITIAL_CLOCK_SECONDS = 10 * 60;
+
+function formatClock(totalSeconds) {
+  const safeSeconds = Math.max(0, totalSeconds);
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
 let ghostIdCounter = 0;
 
 function App() {
@@ -281,6 +303,9 @@ function App() {
   const [sparklingIds, setSparklingIds] = useState(() => new Set());
   const [ghosts, setGhosts] = useState([]); // piezas capturadas "volando" hacia la bandeja
   const [backgroundId, setBackgroundId] = useState(loadSavedBackgroundId);
+  const [whiteTime, setWhiteTime] = useState(INITIAL_CLOCK_SECONDS);
+  const [blackTime, setBlackTime] = useState(INITIAL_CLOCK_SECONDS);
+  const [timeoutColor, setTimeoutColor] = useState(null); // "WHITE" | "BLACK" | null: a quién se le acabó el tiempo
 
   const prevPiecesRef = useRef(new Map());
   const boardElRef = useRef(null);
@@ -298,9 +323,10 @@ function App() {
   }, [backgroundId]);
 
   // Estar en jaque no termina la partida: el jugador todavía debe poder
-  // mover para salir del jaque. Jaque mate y ahogado (tablas) sí la
-  // terminan, así que ahí se bloquea el tablero.
-  const gameOver = gameState === "CHECKMATE" || gameState === "DRAW";
+  // mover para salir del jaque. Jaque mate, ahogado (tablas) y que a alguien
+  // se le acabe el tiempo del reloj sí la terminan, así que ahí se bloquea
+  // el tablero.
+  const gameOver = gameState === "CHECKMATE" || gameState === "DRAW" || Boolean(timeoutColor);
   const isUserTurn = turn === USER_COLOR && !gameOver;
   const checkingPiecePositions =
     board && gameState === "CHECK"
@@ -350,12 +376,16 @@ function App() {
   // compara contra el tablero anterior para detectar capturas (piezas que
   // desaparecieron) y coronaciones (mismo id, mismo lugar, pero cambió de
   // tipo), y dispara las animaciones correspondientes.
+  // Devuelve { capturedCount, promoted } para que quien llamó pueda decidir
+  // qué sonido tiene más prioridad (esto cubre tanto la jugada del usuario
+  // como la respuesta de la IA, que llegan juntas en el mismo estado nuevo).
   function applyStateAnimated(state) {
     const prevPieces = prevPiecesRef.current;
     const nextPieces = flattenBoard(state.board);
 
     const newlySparkling = new Set();
     const newGhosts = [];
+    let promoted = false;
 
     for (const [id, before] of prevPieces) {
       const after = nextPieces.get(id);
@@ -368,6 +398,7 @@ function App() {
       }
       if (after.type !== before.type) {
         newlySparkling.add(id);
+        promoted = true;
       }
     }
 
@@ -386,6 +417,8 @@ function App() {
     if (newGhosts.length > 0) {
       setGhosts((current) => [...current, ...newGhosts]);
     }
+
+    return { capturedCount: newGhosts.length, promoted };
   }
 
   // Mide dónde estaba la pieza capturada (en la cuadrícula real del
@@ -437,6 +470,40 @@ function App() {
   useEffect(() => {
     loadState();
   }, []);
+
+  // Reloj de ajedrez: cada segundo le resta uno al tiempo de quien tiene el
+  // turno. Se frena solo (sin crear el intervalo) si la partida ya terminó,
+  // si no hay conexión con el backend, o si a alguien ya se le acabó el
+  // tiempo. Al llegar a 0 marca el timeout y no sigue descontando de más.
+  useEffect(() => {
+    if (!board || gameOver || connectionError) return undefined;
+
+    const interval = setInterval(() => {
+      if (turn === "WHITE") {
+        setWhiteTime((current) => {
+          if (current <= 1) {
+            setTimeoutColor("WHITE");
+            return 0;
+          }
+          return current - 1;
+        });
+      } else {
+        setBlackTime((current) => {
+          if (current <= 1) {
+            setTimeoutColor("BLACK");
+            return 0;
+          }
+          return current - 1;
+        });
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [board, turn, gameOver, connectionError]);
+
+  useEffect(() => {
+    if (timeoutColor) playTimeoutSound();
+  }, [timeoutColor]);
 
   function triggerCheckChip(who) {
     setCheckChip(null);
@@ -500,8 +567,9 @@ function App() {
     }
 
     // Click en otra casilla (vacía o pieza rival para capturar): intentar mover
+    const movedPieceType = selectedPiece.type;
     const response = await postMove(selected.row, selected.col, row, col);
-    applyStateAnimated(response.state);
+    const { capturedCount, promoted } = applyStateAnimated(response.state);
     setSelected(null);
 
     if (response.result !== "SUCCESS") {
@@ -510,13 +578,32 @@ function App() {
           ? "No es tu turno"
           : "Movimiento inválido"
       );
+      return;
+    }
+
+    setMessage("");
+
+    // Prioridad de sonidos: primero lo que termina la partida, después jaque,
+    // después coronación, después captura, y si no pasó nada de eso, el
+    // sonido normal de la pieza que se movió. "capturedCount" cuenta tanto
+    // las capturas propias como las que hizo la IA en su respuesta.
+    if (response.state.gameState === "CHECKMATE") {
+      const userWon = response.state.turn !== USER_COLOR;
+      playCheckmateSound(userWon);
+    } else if (response.state.gameState === "DRAW") {
+      playDrawSound();
+    } else if (response.gaveCheck) {
+      triggerCheckChip("you");
+      playCheckSound();
+    } else if (response.state.gameState === "CHECK") {
+      triggerCheckChip("them");
+      playCheckSound();
+    } else if (promoted) {
+      playPromotionSound();
+    } else if (capturedCount > 0) {
+      playCaptureSound();
     } else {
-      setMessage("");
-      if (response.gaveCheck) {
-        triggerCheckChip("you");
-      } else if (response.state.gameState === "CHECK") {
-        triggerCheckChip("them");
-      }
+      playMoveSound(movedPieceType);
     }
   }
 
@@ -527,6 +614,9 @@ function App() {
     setMessage("");
     setGhosts([]);
     setCheckChip(null);
+    setWhiteTime(INITIAL_CLOCK_SECONDS);
+    setBlackTime(INITIAL_CLOCK_SECONDS);
+    setTimeoutColor(null);
   }
 
   async function handleUndo() {
@@ -536,12 +626,25 @@ function App() {
     setMessage("");
     setGhosts([]);
     setCheckChip(null);
+    // El tiempo ya gastado no se devuelve (como en un reloj real), pero si se
+    // había acabado el tiempo de alguien, deshacer permite seguir jugando.
+    setTimeoutColor(null);
   }
 
   // Texto de fin de partida, en vez de mostrar el nombre crudo del estado
   // (CHECKMATE / DRAW). Si hay jaque mate, quien queda en jaque es quien
   // pierde, así que el otro color es el ganador.
   function gameOverInfo() {
+    if (timeoutColor) {
+      const userWon = timeoutColor !== USER_COLOR;
+      return {
+        tone: userWon ? "win" : "lose",
+        title: userWon ? "¡Ganaste por tiempo! 🎉" : "Se te acabó el tiempo",
+        subtitle: userWon
+          ? "A Celeste se le acabó el reloj."
+          : "Tu reloj llegó a cero.",
+      };
+    }
     if (gameState === "CHECKMATE") {
       const userWon = turn !== USER_COLOR;
       return {
@@ -695,6 +798,25 @@ function App() {
           <span className={`turn-badge ${turn === "WHITE" ? "pink" : "cyan"}`}>
             Turno: {turn === "WHITE" ? "Rosa" : "Celeste"}
           </span>
+
+          <div className="clocks">
+            <div
+              className={`clock cyan ${turn === "BLACK" && !gameOver ? "active" : ""} ${
+                blackTime <= 30 ? "low" : ""
+              }`}
+            >
+              <span className="clock-label">Celeste</span>
+              <span className="clock-time">{formatClock(blackTime)}</span>
+            </div>
+            <div
+              className={`clock pink ${turn === "WHITE" && !gameOver ? "active" : ""} ${
+                whiteTime <= 30 ? "low" : ""
+              }`}
+            >
+              <span className="clock-label">Rosa</span>
+              <span className="clock-time">{formatClock(whiteTime)}</span>
+            </div>
+          </div>
 
           <div className="tray-group">
             <p className="tray-label">Comidas por Celeste</p>
