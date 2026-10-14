@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#cfe3e0"/>
+      <stop offset="55%" stop-color="#e7ddc2"/>
+      <stop offset="100%" stop-color="#cdb888"/>
+    </linearGradient>
+    <linearGradient id="trunk" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#5a3a22"/>
+      <stop offset="50%" stop-color="#7a5230"/>
+      <stop offset="100%" stop-color="#4a2e18"/>
+    </linearGradient>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6a8f4e"/>
+      <stop offset="100%" stop-color="#3f5c2e"/>
+    </linearGradient>
+    <radialGradient id="beam" cx="50%" cy="0%" r="75%">
+      <stop offset="0%" stop-color="#fff6d8" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#fff6d8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1600" height="1000" fill="url(#sky)"/>
+
+  <!-- light beams -->
+  <g opacity="0.8">
+    <polygon points="260,0 430,0 300,1000 150,1000" fill="url(#beam)"/>
+    <polygon points="760,0 930,0 860,1000 650,1000" fill="url(#beam)"/>
+    <polygon points="1260,0 1430,0 1380,1000 1150,1000" fill="url(#beam)"/>
+  </g>
+
+  <!-- distant canopy silhouettes (soft, far) -->
+  <g fill="#9fae7e" opacity="0.55">
+    <ellipse cx="150" cy="40" rx="190" ry="110"/>
+    <ellipse cx="520" cy="10" rx="220" ry="120"/>
+    <ellipse cx="900" cy="30" rx="210" ry="115"/>
+    <ellipse cx="1280" cy="5" rx="230" ry="120"/>
+    <ellipse cx="1600" cy="35" rx="190" ry="110"/>
+  </g>
+
+  <!-- tree trunks, varied thickness and height -->
+  <g>
+    <rect x="40" y="-40" width="60" height="760" rx="26" fill="url(#trunk)"/>
+    <rect x="170" y="-60" width="42" height="780" rx="20" fill="url(#trunk)"/>
+    <rect x="330" y="-40" width="70" height="770" rx="30" fill="url(#trunk)"/>
+    <rect x="470" y="-60" width="38" height="760" rx="18" fill="url(#trunk)"/>
+    <rect x="600" y="-40" width="58" height="780" rx="24" fill="url(#trunk)"/>
+    <rect x="740" y="-60" width="46" height="760" rx="20" fill="url(#trunk)"/>
+    <rect x="860" y="-40" width="66" height="780" rx="28" fill="url(#trunk)"/>
+    <rect x="1000" y="-60" width="40" height="760" rx="18" fill="url(#trunk)"/>
+    <rect x="1130" y="-40" width="62" height="770" rx="26" fill="url(#trunk)"/>
+    <rect x="1270" y="-60" width="44" height="780" rx="20" fill="url(#trunk)"/>
+    <rect x="1400" y="-40" width="68" height="760" rx="28" fill="url(#trunk)"/>
+    <rect x="1530" y="-60" width="48" height="780" rx="20" fill="url(#trunk)"/>
+  </g>
+
+  <!-- canopy clumps near top of each trunk -->
+  <g fill="#4f7a3a">
+    <ellipse cx="70" cy="60" rx="110" ry="60"/>
+    <ellipse cx="190" cy="40" rx="95" ry="55"/>
+    <ellipse cx="365" cy="55" rx="120" ry="65"/>
+    <ellipse cx="490" cy="35" rx="90" ry="52"/>
+    <ellipse cx="630" cy="55" rx="110" ry="60"/>
+    <ellipse cx="763" cy="38" rx="95" ry="54"/>
+    <ellipse cx="895" cy="55" rx="118" ry="62"/>
+    <ellipse cx="1020" cy="35" rx="90" ry="52"/>
+    <ellipse cx="1160" cy="52" rx="112" ry="60"/>
+    <ellipse cx="1292" cy="36" rx="92" ry="52"/>
+    <ellipse cx="1435" cy="55" rx="115" ry="62"/>
+    <ellipse cx="1555" cy="38" rx="92" ry="52"/>
+  </g>
+  <g fill="#3f6630" opacity="0.8">
+    <ellipse cx="100" cy="90" rx="70" ry="38"/>
+    <ellipse cx="400" cy="85" rx="75" ry="40"/>
+    <ellipse cx="660" cy="88" rx="70" ry="38"/>
+    <ellipse cx="925" cy="85" rx="75" ry="40"/>
+    <ellipse cx="1190" cy="86" rx="72" ry="38"/>
+    <ellipse cx="1465" cy="88" rx="74" ry="40"/>
+  </g>
+
+  <!-- ground -->
+  <path d="M0,760 C220,730 420,780 650,750 C860,724 1040,775 1260,748 C1400,732 1500,760 1600,744 L1600,1000 L0,1000 Z" fill="url(#ground)"/>
+
+  <!-- roots -->
+  <g stroke="#3f2a18" stroke-width="7" fill="none" stroke-linecap="round" opacity="0.6">
+    <path d="M70,730 C50,760 30,780 10,800"/>
+    <path d="M70,730 C90,765 100,790 95,815"/>
+    <path d="M900,752 C875,785 860,805 835,825"/>
+    <path d="M900,752 C925,785 945,800 960,822"/>
+    <path d="M1420,742 C1400,775 1380,795 1360,818"/>
+  </g>
+
+  <!-- rocks -->
+  <g fill="#8a8f86">
+    <ellipse cx="230" cy="850" rx="34" ry="20"/>
+    <ellipse cx="760" cy="880" rx="26" ry="16"/>
+    <ellipse cx="1230" cy="860" rx="30" ry="18"/>
+  </g>
+
+  <!-- small grass tufts -->
+  <g stroke="#2f4a22" stroke-width="5" stroke-linecap="round" opacity="0.7">
+    <path d="M150,790 q6,-22 0,-34 M160,790 q10,-18 6,-32 M140,790 q-6,-18 -2,-30"/>
+    <path d="M520,810 q6,-22 0,-34 M530,810 q10,-18 6,-32 M510,810 q-6,-18 -2,-30"/>
+    <path d="M1050,800 q6,-22 0,-34 M1060,800 q10,-18 6,-32 M1040,800 q-6,-18 -2,-30"/>
+    <path d="M1480,815 q6,-22 0,-34 M1490,815 q10,-18 6,-32 M1470,815 q-6,-18 -2,-30"/>
+  </g>
+
+  <!-- fireflies -->
+  <g fill="#fff3b0">
+    <circle cx="300" cy="420" r="5" opacity="0.9"/>
+    <circle cx="300" cy="420" r="12" opacity="0.3"/>
+    <circle cx="820" cy="360" r="5" opacity="0.9"/>
+    <circle cx="820" cy="360" r="12" opacity="0.3"/>
+    <circle cx="1320" cy="440" r="5" opacity="0.9"/>
+    <circle cx="1320" cy="440" r="12" opacity="0.3"/>
+    <circle cx="560" cy="520" r="4" opacity="0.8"/>
+    <circle cx="560" cy="520" r="10" opacity="0.3"/>
+  </g>
+</svg>

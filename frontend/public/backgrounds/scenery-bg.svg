@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5fc2ef"/>
+      <stop offset="55%" stop-color="#9fe0f7"/>
+      <stop offset="100%" stop-color="#d9f4ff"/>
+    </linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5fc9e8"/>
+      <stop offset="100%" stop-color="#2f93c4"/>
+    </linearGradient>
+    <linearGradient id="sand" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffe9b8"/>
+      <stop offset="100%" stop-color="#f3d49a"/>
+    </linearGradient>
+    <linearGradient id="grassFar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#9fda6a"/>
+      <stop offset="100%" stop-color="#7cc74f"/>
+    </linearGradient>
+    <linearGradient id="grassNear" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7fcb4e"/>
+      <stop offset="100%" stop-color="#5fae3a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- sky -->
+  <rect x="0" y="0" width="1600" height="1000" fill="url(#sky)"/>
+
+  <!-- sun glow -->
+  <circle cx="1360" cy="150" r="90" fill="#fff6c9" opacity="0.9"/>
+  <circle cx="1360" cy="150" r="130" fill="#fff6c9" opacity="0.35"/>
+
+  <!-- clouds -->
+  <g fill="#ffffff" opacity="0.95">
+    <g transform="translate(160,120)">
+      <ellipse cx="0" cy="20" rx="70" ry="30"/>
+      <ellipse cx="55" cy="5" rx="55" ry="35"/>
+      <ellipse cx="-60" cy="10" rx="50" ry="26"/>
+    </g>
+    <g transform="translate(620,80)">
+      <ellipse cx="0" cy="18" rx="60" ry="26"/>
+      <ellipse cx="50" cy="4" rx="46" ry="28"/>
+      <ellipse cx="-50" cy="8" rx="42" ry="22"/>
+    </g>
+    <g transform="translate(1040,210)">
+      <ellipse cx="0" cy="16" rx="56" ry="24"/>
+      <ellipse cx="46" cy="4" rx="42" ry="26"/>
+      <ellipse cx="-46" cy="8" rx="40" ry="20"/>
+    </g>
+    <g transform="translate(1480,320)" opacity="0.85">
+      <ellipse cx="0" cy="14" rx="48" ry="20"/>
+      <ellipse cx="40" cy="2" rx="36" ry="22"/>
+    </g>
+  </g>
+
+  <!-- distant rolling hills -->
+  <path d="M0,560 C120,520 260,520 400,555 C540,590 650,540 800,545 C950,550 1060,600 1220,565 C1360,535 1480,560 1600,540 L1600,650 L0,650 Z" fill="url(#grassFar)"/>
+
+  <!-- birds -->
+  <g stroke="#3a6b2a" stroke-width="5" stroke-linecap="round" fill="none" opacity="0.7">
+    <path d="M250,200 q12,-14 24,0 q12,-14 24,0"/>
+    <path d="M980,150 q10,-12 20,0 q10,-12 20,0"/>
+  </g>
+
+  <!-- main grass field -->
+  <path d="M0,640 C180,610 320,650 480,630 C660,608 780,660 960,635 C1130,612 1300,655 1600,620 L1600,760 L0,760 Z" fill="url(#grassNear)"/>
+
+  <!-- little flower / bush dots on the grass -->
+  <g>
+    <circle cx="120" cy="680" r="10" fill="#ffffff" opacity="0.9"/>
+    <circle cx="140" cy="686" r="8" fill="#ffe36b"/>
+    <circle cx="1460" cy="700" r="10" fill="#ffffff" opacity="0.9"/>
+    <circle cx="1480" cy="706" r="8" fill="#ff8fc4"/>
+    <circle cx="760" cy="705" r="9" fill="#ffffff" opacity="0.85"/>
+    <circle cx="778" cy="710" r="7" fill="#ffd23f"/>
+  </g>
+
+  <!-- beach (wavy shoreline) -->
+  <path d="M0,760 C200,790 380,735 600,760 C820,785 980,740 1200,765 C1340,780 1460,755 1600,770 L1600,860 L0,860 Z" fill="url(#sand)"/>
+
+  <!-- water -->
+  <path d="M0,840 C220,815 380,860 600,835 C820,810 980,855 1200,830 C1360,812 1480,840 1600,825 L1600,1000 L0,1000 Z" fill="url(#water)"/>
+  <g stroke="#eaf8ff" stroke-width="6" stroke-linecap="round" opacity="0.55" fill="none">
+    <path d="M80,900 q40,-14 80,0 q40,-14 80,0"/>
+    <path d="M420,930 q40,-14 80,0 q40,-14 80,0"/>
+    <path d="M900,910 q40,-14 80,0 q40,-14 80,0"/>
+    <path d="M1250,945 q40,-14 80,0 q40,-14 80,0"/>
+  </g>
+
+  <!-- palm tree left -->
+  <g transform="translate(110,860)">
+    <path d="M0,0 C-10,-60 10,-120 -6,-190" stroke="#8a5a2b" stroke-width="18" fill="none" stroke-linecap="round"/>
+    <g fill="#4fae46">
+      <path d="M-6,-190 C-70,-210 -110,-170 -130,-150 C-80,-150 -40,-165 -6,-190 Z"/>
+      <path d="M-6,-190 C40,-225 95,-205 120,-180 C75,-175 30,-175 -6,-190 Z"/>
+      <path d="M-6,-190 C-30,-240 -10,-270 10,-290 C20,-250 15,-215 -6,-190 Z"/>
+      <path d="M-6,-190 C-55,-225 -60,-260 -55,-285 C-25,-255 -15,-220 -6,-190 Z"/>
+    </g>
+    <ellipse cx="-24" cy="-178" rx="10" ry="7" fill="#7a4a2a"/>
+    <ellipse cx="-10" cy="-172" rx="10" ry="7" fill="#7a4a2a"/>
+  </g>
+
+  <!-- palm tree right -->
+  <g transform="translate(1500,900) scale(-1,1)">
+    <path d="M0,0 C-10,-60 10,-120 -6,-190" stroke="#8a5a2b" stroke-width="20" fill="none" stroke-linecap="round"/>
+    <g fill="#4fae46">
+      <path d="M-6,-190 C-70,-210 -110,-170 -130,-150 C-80,-150 -40,-165 -6,-190 Z"/>
+      <path d="M-6,-190 C40,-225 95,-205 120,-180 C75,-175 30,-175 -6,-190 Z"/>
+      <path d="M-6,-190 C-30,-240 -10,-270 10,-290 C20,-250 15,-215 -6,-190 Z"/>
+      <path d="M-6,-190 C-55,-225 -60,-260 -55,-285 C-25,-255 -15,-220 -6,-190 Z"/>
+    </g>
+    <ellipse cx="-24" cy="-178" rx="10" ry="7" fill="#7a4a2a"/>
+    <ellipse cx="-10" cy="-172" rx="10" ry="7" fill="#7a4a2a"/>
+  </g>
+</svg>

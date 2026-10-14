@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getState, postMove, resetGame, undoMove } from "./Api";
 import "./App.css";
 
@@ -36,12 +36,37 @@ const PIECE_IMAGE = {
   },
 };
 
-// Celeste (Negras) arriba, Rosa (Blancas) abajo: se recorre el tablero
-// de la fila 7 a la 0 en vez de 0 a 7, solo para dibujarlo — la lógica
-// de movimientos sigue usando las filas reales que maneja el backend.
-const ROW_ORDER = [7, 6, 5, 4, 3, 2, 1, 0];
+// Celeste (Negras) arriba, Rosa (Blancas) abajo: se dibuja la fila de pantalla
+// 7-row en vez de row directamente — la lógica de movimientos sigue usando
+// las filas reales que maneja el backend.
+function toScreenRow(row) {
+  return 7 - row;
+}
 
 const BOARD_SIZE = 8;
+
+// Los 5 fondos entre los que se puede elegir. Los dos ".webp" son fotos
+// propias (subidas por la usuaria a mano); los tres ".svg" son ilustraciones
+// originales (no son arte de Nintendo ni de ningún juego: un patrón de
+// hojitas, una isla y un bosque, dibujados de cero).
+const BACKGROUNDS = [
+  { id: "forest", label: "Bosque", file: "/backgrounds/forest-bg.svg", mode: "cover" },
+  { id: "scenery", label: "Isla", file: "/backgrounds/scenery-bg.svg", mode: "cover" },
+  { id: "leaves", label: "Hojitas", file: "/backgrounds/leaf-pattern.svg", mode: "tile" },
+  { id: "fondo1", label: "Fondo 1", file: "/backgrounds/fondo.webp", mode: "cover" },
+  { id: "fondo2", label: "Fondo 2", file: "/backgrounds/fondo2.webp", mode: "cover" },
+];
+const DEFAULT_BACKGROUND_ID = "fondo2";
+
+function loadSavedBackgroundId() {
+  try {
+    const saved = localStorage.getItem("ajedrezCrossingBackground");
+    if (saved && BACKGROUNDS.some((bg) => bg.id === saved)) return saved;
+  } catch {
+    // localStorage puede no estar disponible (modo privado, etc.): no pasa nada
+  }
+  return DEFAULT_BACKGROUND_ID;
+}
 
 function isInsideBoard(row, col) {
   return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE;
@@ -218,11 +243,30 @@ function getCheckingPiecePositions(board, color) {
   return positions;
 }
 
+// Convierte el tablero (matriz 8x8) en una lista plana de piezas vivas,
+// indexada por su id. Se usa tanto para dibujar la capa de piezas como para
+// comparar "tablero anterior" contra "tablero nuevo" y detectar capturas y
+// coronaciones.
+function flattenBoard(board) {
+  const byId = new Map();
+  for (let row = 0; row < BOARD_SIZE; row += 1) {
+    for (let col = 0; col < BOARD_SIZE; col += 1) {
+      const piece = board[row][col];
+      if (piece) {
+        byId.set(piece.id, { ...piece, row, col });
+      }
+    }
+  }
+  return byId;
+}
+
 const USER_COLOR = "WHITE";
 
 function isUserPiece(piece) {
   return Boolean(piece && piece.color === USER_COLOR);
 }
+
+let ghostIdCounter = 0;
 
 function App() {
   const [board, setBoard] = useState(null);
@@ -231,6 +275,27 @@ function App() {
   const [selected, setSelected] = useState(null); // { row, col }
   const [message, setMessage] = useState("");
   const [connectionError, setConnectionError] = useState(false);
+  const [capturedWhite, setCapturedWhite] = useState([]);
+  const [capturedBlack, setCapturedBlack] = useState([]);
+  const [checkChip, setCheckChip] = useState(null); // "them" | "you" | null, con un pop al aparecer
+  const [sparklingIds, setSparklingIds] = useState(() => new Set());
+  const [ghosts, setGhosts] = useState([]); // piezas capturadas "volando" hacia la bandeja
+  const [backgroundId, setBackgroundId] = useState(loadSavedBackgroundId);
+
+  const prevPiecesRef = useRef(new Map());
+  const boardElRef = useRef(null);
+  const trayWhiteRef = useRef(null);
+  const trayBlackRef = useRef(null);
+
+  const background = BACKGROUNDS.find((bg) => bg.id === backgroundId) ?? BACKGROUNDS[0];
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("ajedrezCrossingBackground", backgroundId);
+    } catch {
+      // sin localStorage no pasa nada, simplemente no se recuerda la próxima vez
+    }
+  }, [backgroundId]);
 
   // Estar en jaque no termina la partida: el jugador todavía debe poder
   // mover para salir del jaque. Jaque mate y ahogado (tablas) sí la
@@ -241,6 +306,8 @@ function App() {
     board && gameState === "CHECK"
       ? getCheckingPiecePositions(board, turn)
       : [];
+  const kingInCheckPosition =
+    board && gameState === "CHECK" ? findKing(board, turn) : null;
   const selectedPiece =
     selected && board ? board[selected.row]?.[selected.col] : null;
   const possibleMoves =
@@ -265,17 +332,103 @@ function App() {
     );
   }
 
-  function applyState(state) {
+  // Aplica un estado nuevo del backend tal cual, sin animar nada. Se usa al
+  // cargar la partida por primera vez, al reiniciar y al deshacer: en
+  // ninguno de esos casos hay una "jugada" real que animar, así que no tiene
+  // sentido hacer volar piezas a la bandeja ni mostrar el chip de jaque.
+  function applyStateInstant(state) {
     setBoard(state.board);
     setTurn(state.turn);
     setGameState(state.gameState);
+    setCapturedWhite(state.capturedWhite ?? []);
+    setCapturedBlack(state.capturedBlack ?? []);
     setConnectionError(false);
+    prevPiecesRef.current = flattenBoard(state.board);
+  }
+
+  // Aplica un estado nuevo que viene de una jugada real (tuya o de la IA):
+  // compara contra el tablero anterior para detectar capturas (piezas que
+  // desaparecieron) y coronaciones (mismo id, mismo lugar, pero cambió de
+  // tipo), y dispara las animaciones correspondientes.
+  function applyStateAnimated(state) {
+    const prevPieces = prevPiecesRef.current;
+    const nextPieces = flattenBoard(state.board);
+
+    const newlySparkling = new Set();
+    const newGhosts = [];
+
+    for (const [id, before] of prevPieces) {
+      const after = nextPieces.get(id);
+      if (!after) {
+        // Ya no está en el tablero: la capturaron. Si la medida del tablero
+        // y de la bandeja están disponibles, arma el "vuelo" hacia ahí.
+        const flight = buildCaptureGhost(id, before);
+        if (flight) newGhosts.push(flight);
+        continue;
+      }
+      if (after.type !== before.type) {
+        newlySparkling.add(id);
+      }
+    }
+
+    setBoard(state.board);
+    setTurn(state.turn);
+    setGameState(state.gameState);
+    setCapturedWhite(state.capturedWhite ?? []);
+    setCapturedBlack(state.capturedBlack ?? []);
+    setConnectionError(false);
+    prevPiecesRef.current = nextPieces;
+
+    if (newlySparkling.size > 0) {
+      setSparklingIds(newlySparkling);
+      setTimeout(() => setSparklingIds(new Set()), 650);
+    }
+    if (newGhosts.length > 0) {
+      setGhosts((current) => [...current, ...newGhosts]);
+    }
+  }
+
+  // Mide dónde estaba la pieza capturada (en la cuadrícula real del
+  // tablero) y hacia dónde tiene que volar (la bandeja de su color), y arma
+  // el objeto "fantasma" que se va a dibujar con position:fixed y animar
+  // con una transición de top/left/opacity/scale.
+  function buildCaptureGhost(id, piece) {
+    const boardEl = boardElRef.current;
+    if (!boardEl) return null;
+
+    const boardRect = boardEl.getBoundingClientRect();
+    const screenRow = toScreenRow(piece.row);
+    const squareSize = boardRect.width / BOARD_SIZE;
+    const startLeft = boardRect.left + piece.col * squareSize;
+    const startTop = boardRect.top + screenRow * squareSize;
+
+    // La pieza capturada la come quien tenía el turno en ese momento: si la
+    // pieza comida es BLANCA, la comió Negras (va a la bandeja de Negras),
+    // y viceversa.
+    const trayEl = piece.color === "WHITE" ? trayBlackRef.current : trayWhiteRef.current;
+    const trayRect = trayEl ? trayEl.getBoundingClientRect() : null;
+    const endLeft = trayRect ? trayRect.left + trayRect.width / 2 - squareSize / 2 : startLeft;
+    const endTop = trayRect ? trayRect.top + trayRect.height / 2 - squareSize / 2 : startTop;
+
+    ghostIdCounter += 1;
+    return {
+      ghostId: ghostIdCounter,
+      color: piece.color,
+      type: piece.type,
+      size: squareSize,
+      start: { top: startTop, left: startLeft },
+      end: { top: endTop, left: endLeft },
+    };
+  }
+
+  function removeGhost(ghostId) {
+    setGhosts((current) => current.filter((g) => g.ghostId !== ghostId));
   }
 
   async function loadState() {
     try {
       const state = await getState();
-      applyState(state);
+      applyStateInstant(state);
     } catch {
       setConnectionError(true);
     }
@@ -284,6 +437,16 @@ function App() {
   useEffect(() => {
     loadState();
   }, []);
+
+  function triggerCheckChip(who) {
+    setCheckChip(null);
+    // Se saca y se vuelve a poner en el próximo tick para que, si ya estaba
+    // mostrando el chip, la animación de "pop" se vea de nuevo.
+    requestAnimationFrame(() => {
+      setCheckChip(who);
+      setTimeout(() => setCheckChip(null), 1600);
+    });
+  }
 
   async function handleSquareClick(row, col) {
     if (!board) return;
@@ -338,7 +501,7 @@ function App() {
 
     // Click en otra casilla (vacía o pieza rival para capturar): intentar mover
     const response = await postMove(selected.row, selected.col, row, col);
-    applyState(response.state);
+    applyStateAnimated(response.state);
     setSelected(null);
 
     if (response.result !== "SUCCESS") {
@@ -349,40 +512,59 @@ function App() {
       );
     } else {
       setMessage("");
+      if (response.gaveCheck) {
+        triggerCheckChip("you");
+      } else if (response.state.gameState === "CHECK") {
+        triggerCheckChip("them");
+      }
     }
   }
 
   async function handleReset() {
     const state = await resetGame();
-    applyState(state);
+    applyStateInstant(state);
     setSelected(null);
     setMessage("");
+    setGhosts([]);
+    setCheckChip(null);
   }
 
   async function handleUndo() {
     const state = await undoMove();
-    applyState(state);
+    applyStateInstant(state);
     setSelected(null);
     setMessage("");
+    setGhosts([]);
+    setCheckChip(null);
   }
 
   // Texto de fin de partida, en vez de mostrar el nombre crudo del estado
   // (CHECKMATE / DRAW). Si hay jaque mate, quien queda en jaque es quien
   // pierde, así que el otro color es el ganador.
-  function gameOverMessage() {
+  function gameOverInfo() {
     if (gameState === "CHECKMATE") {
-      const ganador = turn === "WHITE" ? "Celeste" : "Rosa";
-      return `¡Jaque mate! Ganó ${ganador} 🎉`;
+      const userWon = turn !== USER_COLOR;
+      return {
+        tone: userWon ? "win" : "lose",
+        title: userWon ? "¡Ganaste! 🎉" : "Perdiste",
+        subtitle: userWon
+          ? "Le pusiste jaque mate a Celeste."
+          : "Te pusieron jaque mate.",
+      };
     }
     if (gameState === "DRAW") {
-      return "Ahogado: la partida terminó en tablas (empate).";
+      return {
+        tone: "draw",
+        title: "Tablas",
+        subtitle: "Ahogado: nadie tiene movimientos legales, pero nadie está en jaque.",
+      };
     }
     return null;
   }
 
   if (connectionError) {
     return (
-      <div className="app">
+      <div className="app" data-bg-mode={background.mode}>
         <div className="title-sticker">
           <h1>Ajedrez Crossing</h1>
         </div>
@@ -400,81 +582,217 @@ function App() {
 
   if (!board) return <p className="loading">Conectando con el backend...</p>;
 
+  const info = gameOverInfo();
+
   return (
-    <div className="app">
+    <div
+      className="app"
+      style={{ "--app-bg": `url("${background.file}")` }}
+      data-bg-mode={background.mode}
+    >
       <div className="title-sticker">
-        <span className="paw paw-left">🐾</span>
+        <span className="sign-peg sign-peg-left" />
         <h1>Ajedrez Crossing</h1>
-        <span className="paw paw-right">🐾</span>
+        <span className="sign-peg sign-peg-right" />
       </div>
 
       <div className="status">
-        <span className={`turn-badge ${turn === "WHITE" ? "pink" : "cyan"}`}>
-          Turno: {turn === "WHITE" ? "Rosa" : "Celeste"}
-        </span>
-        {gameOver && <span className="game-state">{gameOverMessage()}</span>}
         {!gameOver && gameState === "CHECK" && (
           <span className="game-state">¡Jaque!</span>
+        )}
+        {checkChip && (
+          <span key={checkChip} className={`check-chip ${checkChip}`}>
+            {checkChip === "you" ? "¡Pusiste en jaque!" : "¡Te pusieron en jaque!"}
+          </span>
         )}
         {message && <span className="message">{message}</span>}
       </div>
 
-      <div className="board-frame">
-        <span className="side-tag side-tag-top">Celeste</span>
-
-        <div className="board">
-          {ROW_ORDER.map((row) => (
-            <div className="board-row" key={row}>
-              {board[row].map((piece, col) => {
-                const isDark = (row + col) % 2 === 1;
-                const isSelected =
-                  isUserTurn &&
-                  isUserPiece(piece) &&
-                  selected &&
-                  selected.row === row &&
-                  selected.col === col;
-                const isPossible = isPossibleMove(row, col);
-                const isCheckingPiece = checkingPiecePositions.includes(
-                  `${row}-${col}`
-                );
+      <div className="game-layout">
+        <div className="board-frame">
+          <div className="board" ref={boardElRef}>
+            <div className="squares-grid">
+              {Array.from({ length: BOARD_SIZE }, (_, screenRow) => {
+                const row = toScreenRow(screenRow);
                 return (
-                  <div
-                    key={col}
-                    className={`square ${isDark ? "dark" : "light"} ${
-                      isSelected ? "selected" : ""
-                    } ${isPossible ? "possible-move" : ""} ${
-                      isPossible && piece ? "possible-capture" : ""
-                    } ${isCheckingPiece ? "checking-piece" : ""}`}
-                    onClick={() => handleSquareClick(row, col)}
-                  >
-                    {piece && (
-                      <img
-                        className="piece"
-                        src={PIECE_IMAGE[piece.color][piece.type]}
-                        alt={`${piece.type} ${piece.color}`}
-                        title={piece.type}
-                        draggable={false}
-                      />
-                    )}
+                  <div className="board-row" key={row}>
+                    {board[row].map((piece, col) => {
+                      const isDark = (row + col) % 2 === 1;
+                      const isSelected =
+                        isUserTurn &&
+                        isUserPiece(piece) &&
+                        selected &&
+                        selected.row === row &&
+                        selected.col === col;
+                      const isPossible = isPossibleMove(row, col);
+                      const isCheckingPiece = checkingPiecePositions.includes(
+                        `${row}-${col}`
+                      );
+                      const isKingInCheck =
+                        kingInCheckPosition &&
+                        kingInCheckPosition.row === row &&
+                        kingInCheckPosition.col === col;
+                      return (
+                        <div
+                          key={col}
+                          className={`square ${isDark ? "dark" : "light"} ${
+                            isSelected ? "selected" : ""
+                          } ${isPossible ? "possible-move" : ""} ${
+                            isPossible && piece ? "possible-capture" : ""
+                          } ${isCheckingPiece ? "checking-piece" : ""} ${
+                            isKingInCheck ? "king-in-check" : ""
+                          }`}
+                          onClick={() => handleSquareClick(row, col)}
+                        />
+                      );
+                    })}
                   </div>
                 );
               })}
             </div>
-          ))}
+
+            <div className="pieces-layer">
+              {Array.from(flattenBoard(board).values()).map((piece) => {
+                const screenRow = toScreenRow(piece.row);
+                return (
+                  <div
+                    key={piece.id}
+                    className={`piece-slot ${sparklingIds.has(piece.id) ? "sparkle" : ""}`}
+                    style={{
+                      top: `${(screenRow / BOARD_SIZE) * 100}%`,
+                      left: `${(piece.col / BOARD_SIZE) * 100}%`,
+                      width: `${100 / BOARD_SIZE}%`,
+                      height: `${100 / BOARD_SIZE}%`,
+                    }}
+                  >
+                    <img
+                      className="piece"
+                      src={PIECE_IMAGE[piece.color][piece.type]}
+                      alt={`${piece.type} ${piece.color}`}
+                      title={piece.type}
+                      draggable={false}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            {info && (
+              <div className={`game-over-overlay ${info.tone}`}>
+                <div className="game-over-card">
+                  <strong>{info.title}</strong>
+                  <span>{info.subtitle}</span>
+                  <button className="reset-btn" onClick={handleReset}>
+                    Jugar de nuevo
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        <span className="side-tag side-tag-bottom">Rosa</span>
+        <div className="side-panel">
+          <span className={`turn-badge ${turn === "WHITE" ? "pink" : "cyan"}`}>
+            Turno: {turn === "WHITE" ? "Rosa" : "Celeste"}
+          </span>
+
+          <div className="tray-group">
+            <p className="tray-label">Comidas por Celeste</p>
+            <div className="captured-tray" ref={trayBlackRef}>
+              {capturedBlack.map((piece) => (
+                <img
+                  key={piece.id}
+                  className="captured-piece"
+                  src={PIECE_IMAGE[piece.color][piece.type]}
+                  alt={`${piece.type} ${piece.color} capturada`}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="tray-group">
+            <p className="tray-label">Comidas por Rosa</p>
+            <div className="captured-tray" ref={trayWhiteRef}>
+              {capturedWhite.map((piece) => (
+                <img
+                  key={piece.id}
+                  className="captured-piece"
+                  src={PIECE_IMAGE[piece.color][piece.type]}
+                  alt={`${piece.type} ${piece.color} capturada`}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-picker">
+            <p className="tray-label">Fondo</p>
+            <div className="bg-swatches">
+              {BACKGROUNDS.map((bg) => (
+                <button
+                  key={bg.id}
+                  type="button"
+                  className={`bg-swatch ${bg.id === backgroundId ? "active" : ""}`}
+                  style={{ backgroundImage: `url("${bg.file}")` }}
+                  title={bg.label}
+                  aria-label={bg.label}
+                  onClick={() => setBackgroundId(bg.id)}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="actions">
+            <button className="undo-btn" onClick={handleUndo}>
+              Deshacer
+            </button>
+            <button className="reset-btn" onClick={handleReset}>
+              Reiniciar partida
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="actions">
-        <button className="undo-btn" onClick={handleUndo}>
-          Deshacer
-        </button>
-        <button className="reset-btn" onClick={handleReset}>
-          Reiniciar partida
-        </button>
-      </div>
+      {ghosts.map((ghost) => (
+        <CaptureGhost key={ghost.ghostId} ghost={ghost} onDone={() => removeGhost(ghost.ghostId)} />
+      ))}
     </div>
+  );
+}
+
+// Una pieza comida, dibujada con position:fixed (en coordenadas de pantalla,
+// no del tablero) para poder volar desde su casilla hasta la bandeja aunque
+// estén en contenedores distintos. Arranca parada en el punto de partida sin
+// transición, y en el siguiente frame se le asigna el punto de llegada CON
+// transición, que es lo que dispara la animación.
+function CaptureGhost({ ghost, onDone }) {
+  const [pos, setPos] = useState(ghost.start);
+  const [faded, setFaded] = useState(false);
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      setPos(ghost.end);
+      setFaded(true);
+    });
+    const timeout = setTimeout(onDone, 650);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timeout);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <img
+      className={`capture-ghost ${faded ? "faded" : ""}`}
+      style={{
+        top: pos.top,
+        left: pos.left,
+        width: ghost.size,
+        height: ghost.size,
+      }}
+      src={PIECE_IMAGE[ghost.color][ghost.type]}
+      alt=""
+    />
   );
 }
 
