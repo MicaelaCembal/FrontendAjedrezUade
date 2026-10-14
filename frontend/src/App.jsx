@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getState, postMove, resetGame } from "./api";
+import { getState, postMove, resetGame, undoMove } from "./Api";
 import "./App.css";
 
 import rookPink from "./assets/pieces/rosa/rookPink.png";
@@ -233,8 +233,10 @@ function App() {
   const [connectionError, setConnectionError] = useState(false);
 
   // Estar en jaque no termina la partida: el jugador todavía debe poder
-  // mover para salir del jaque. Solo el jaque mate bloquea la interacción.
-  const isUserTurn = turn === USER_COLOR && gameState !== "CHECKMATE";
+  // mover para salir del jaque. Jaque mate y ahogado (tablas) sí la
+  // terminan, así que ahí se bloquea el tablero.
+  const gameOver = gameState === "CHECKMATE" || gameState === "DRAW";
+  const isUserTurn = turn === USER_COLOR && !gameOver;
   const checkingPiecePositions =
     board && gameState === "CHECK"
       ? getCheckingPiecePositions(board, turn)
@@ -357,6 +359,27 @@ function App() {
     setMessage("");
   }
 
+  async function handleUndo() {
+    const state = await undoMove();
+    applyState(state);
+    setSelected(null);
+    setMessage("");
+  }
+
+  // Texto de fin de partida, en vez de mostrar el nombre crudo del estado
+  // (CHECKMATE / DRAW). Si hay jaque mate, quien queda en jaque es quien
+  // pierde, así que el otro color es el ganador.
+  function gameOverMessage() {
+    if (gameState === "CHECKMATE") {
+      const ganador = turn === "WHITE" ? "Celeste" : "Rosa";
+      return `¡Jaque mate! Ganó ${ganador} 🎉`;
+    }
+    if (gameState === "DRAW") {
+      return "Ahogado: la partida terminó en tablas (empate).";
+    }
+    return null;
+  }
+
   if (connectionError) {
     return (
       <div className="app">
@@ -364,7 +387,7 @@ function App() {
           <h1>Ajedrez Crossing</h1>
         </div>
         <p className="error">
-          No me pude conectar al backend en <code>http://localhost:8080</code>.
+          No me pude conectar al backend en <code>http://localhost:8081</code>.
           <br />
           Fijate que el <code>WebMain.java</code> esté corriendo en VS Code.
         </p>
@@ -389,8 +412,9 @@ function App() {
         <span className={`turn-badge ${turn === "WHITE" ? "pink" : "cyan"}`}>
           Turno: {turn === "WHITE" ? "Rosa" : "Celeste"}
         </span>
-        {gameState !== "IN_PROGRESS" && (
-          <span className="game-state">{gameState}</span>
+        {gameOver && <span className="game-state">{gameOverMessage()}</span>}
+        {!gameOver && gameState === "CHECK" && (
+          <span className="game-state">¡Jaque!</span>
         )}
         {message && <span className="message">{message}</span>}
       </div>
@@ -442,9 +466,14 @@ function App() {
         <span className="side-tag side-tag-bottom">Rosa</span>
       </div>
 
-      <button className="reset-btn" onClick={handleReset}>
-        Reiniciar partida
-      </button>
+      <div className="actions">
+        <button className="undo-btn" onClick={handleUndo}>
+          Deshacer
+        </button>
+        <button className="reset-btn" onClick={handleReset}>
+          Reiniciar partida
+        </button>
+      </div>
     </div>
   );
 }

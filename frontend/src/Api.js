@@ -18,3 +18,8 @@ export async function resetGame() {
   const res = await fetch(`${API_URL}/reset`, { method: "POST" });
   return res.json();
 }
+
+export async function undoMove() {
+  const res = await fetch(`${API_URL}/undo`, { method: "POST" });
+  return res.json();
+}

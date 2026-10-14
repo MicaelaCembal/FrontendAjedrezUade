@@ -246,9 +246,17 @@ body {
   pointer-events: none; /* los clicks los agarra el .square */
 }
 
-/* ---------- Botón ---------- */
+/* ---------- Botones ---------- */
 
-.reset-btn {
+.actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.reset-btn,
+.undo-btn {
   padding: 12px 28px;
   border-radius: 999px;
   border: none;
@@ -261,10 +269,15 @@ body {
   box-shadow: 0 5px 0 rgba(0, 0, 0, 0.3);
   transition: transform 0.12s ease;
 }
-.reset-btn:hover {
+.undo-btn {
+  background: #7a9c8e;
+}
+.reset-btn:hover,
+.undo-btn:hover {
   transform: translateY(-2px);
 }
-.reset-btn:active {
+.reset-btn:active,
+.undo-btn:active {
   transform: translateY(2px);
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
 }
