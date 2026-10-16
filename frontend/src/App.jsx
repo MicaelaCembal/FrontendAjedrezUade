@@ -61,9 +61,9 @@ const BOARD_SIZE = 8;
 // ".svg" son ilustraciones originales (no son arte de Nintendo ni de ningún
 // juego: un patrón de hojitas, una isla y un bosque, dibujados de cero).
 const BACKGROUNDS = [
-  { id: "fondo1", label: "Bosque", file: "/backgrounds/fondo1.svg", mode: "cover" },
+  { id: "fondo1", label: "Bosque", file: "/backgrounds/fondo1.jpg", mode: "cover" },
   { id: "fondo2", label: "Isla", file: "/backgrounds/fondo2.svg", mode: "cover" },
-  { id: "fondo3", label: "Hojitas", file: "/backgrounds/fondo3.svg", mode: "tile" },
+  { id: "fondo3", label: "Hojitas", file: "/backgrounds/fondo3.jfif", mode: "til e" },
   { id: "fondo4", label: "Fondo 4", file: "/backgrounds/fondo4.webp", mode: "cover" },
   { id: "fondo5", label: "Fondo 5", file: "/backgrounds/fondo5.webp", mode: "cover" },
 ];
