@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getState, postMove, resetGame, undoMove } from "./Api";
+import { getState, postMove, resetGame, undoMove, getHint, getPositions } from "./Api";
 import {
   playMoveSound,
   playCaptureSound,
@@ -8,9 +8,20 @@ import {
   playDrawSound,
   playPromotionSound,
   playTimeoutSound,
+  playCastleSound,
+  playSelectSound,
+  playInvalidSound,
+  playAiMoveSound,
+  preloadSamples,
 } from "./sound";
+import { startIfWanted } from "./music";
+import MusicPlayer from "./MusicPlayer";
 import HowToPlay from "./HowToPlay";
 import "./App.css";
+
+import logo from "./assets/logo.png";
+import avatarPink from "./assets/pieces/rosa/playerPink.png";
+import avatarCeleste from "./assets/pieces/celeste/playerLightBlue.png";
 
 import rookPink from "./assets/pieces/rosa/rookPink.png";
 import knightPink from "./assets/pieces/rosa/knightPink.png";
@@ -55,6 +66,30 @@ function toScreenRow(row) {
 
 const BOARD_SIZE = 8;
 
+// Nombre en español y valor en puntos de cada pieza (el valor clásico del ajedrez).
+// El Rey no se puede comer, así que no tiene valor.
+const PIECE_NAME = {
+  PAWN: "Peón",
+  KNIGHT: "Caballo",
+  BISHOP: "Alfil",
+  ROOK: "Torre",
+  QUEEN: "Dama",
+  KING: "Rey",
+};
+const PIECE_VALUE = { PAWN: 1, KNIGHT: 3, BISHOP: 3, ROOK: 5, QUEEN: 9, KING: 0 };
+const COLOR_NAME = { WHITE: "Rosa", BLACK: "Celeste" };
+
+function totalPoints(pieces) {
+  return pieces.reduce((sum, piece) => sum + (PIECE_VALUE[piece.type] ?? 0), 0);
+}
+
+// Texto del cartelito que aparece al pasar el mouse sobre una pieza
+function pieceTooltip(piece) {
+  const points = PIECE_VALUE[piece.type];
+  const worth = points > 0 ? `vale ${points} ${points === 1 ? "punto" : "puntos"}` : "no se puede comer";
+  return `${PIECE_NAME[piece.type]} ${COLOR_NAME[piece.color]} · ${worth}`;
+}
+
 // Los 5 fondos entre los que se puede elegir, todos con el mismo esquema de
 // nombre (fondo1..fondo5) para que sea fácil agregar/sacar uno después. Los
 // dos ".webp" son fotos propias (subidas por la usuaria a mano); los tres
@@ -66,6 +101,7 @@ const BACKGROUNDS = [
   { id: "fondo3", label: "Hojitas", file: "/backgrounds/fondo3.jfif", mode: "tile" },
   { id: "fondo4", label: "Fondo 4", file: "/backgrounds/fondo4.webp", mode: "cover" },
   { id: "fondo5", label: "Fondo 5", file: "/backgrounds/fondo5.webp", mode: "cover" },
+  { id: "fondo6", label: "Sendero", file: "/backgrounds/fondo6.webp", mode: "cover" },
 ];
 const DEFAULT_BACKGROUND_ID = "fondo5";
 
@@ -94,6 +130,57 @@ function flattenBoard(board) {
     }
   }
   return byId;
+}
+
+const DIFFICULTIES = [
+  {
+    id: "EASY",
+    name: "Fácil",
+    text: "Celeste juega rápido y se equivoca seguido. Ideal para aprender.",
+  },
+  {
+    id: "MEDIUM",
+    name: "Medio",
+    text: "Mira un par de jugadas por adelantado. Un rival parejo.",
+  },
+  {
+    id: "HARD",
+    name: "Difícil",
+    text: "Piensa varias jugadas y casi no regala piezas. Puede tardar un poco.",
+  },
+];
+const DIFFICULTY_NAME = { EASY: "Fácil", MEDIUM: "Medio", HARD: "Difícil" };
+
+// El backend escribe las jugadas con letras en español (R rey, D dama, T torre,
+// A alfil, C caballo). El PGN estándar usa las inglesas (K, Q, R, B, N).
+const PGN_LETTER = { R: "K", D: "Q", T: "R", A: "B", C: "N" };
+function toPgnMove(move) {
+  return move
+    .replace(/^[RDTAC]/, (letter) => PGN_LETTER[letter])
+    .replace(/=([DTAC])/, (_, letter) => `=${PGN_LETTER[letter]}`);
+}
+
+function buildPgn(history, result, difficulty) {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const date = `${now.getFullYear()}.${pad(now.getMonth() + 1)}.${pad(now.getDate())}`;
+  const headers = [
+    ["Event", "Ajedrez Crossing"],
+    ["Site", "Local"],
+    ["Date", date],
+    ["White", "Rosa (jugador)"],
+    ["Black", `Celeste (IA ${DIFFICULTY_NAME[difficulty] ?? ""})`.replace(" )", ")")],
+    ["Result", result],
+  ]
+    .map(([key, value]) => `[${key} "${value}"]`)
+    .join("\n");
+  const moves = [];
+  for (let i = 0; i < history.length; i += 2) {
+    const white = toPgnMove(history[i]);
+    const black = history[i + 1] ? ` ${toPgnMove(history[i + 1])}` : "";
+    moves.push(`${i / 2 + 1}. ${white}${black}`);
+  }
+  return `${headers}\n\n${moves.join(" ")}${moves.length ? " " : ""}${result}\n`;
 }
 
 const USER_COLOR = "WHITE";
@@ -138,6 +225,8 @@ function App() {
   const [capturedWhite, setCapturedWhite] = useState([]);
   const [capturedBlack, setCapturedBlack] = useState([]);
   const [canUndo, setCanUndo] = useState(false);
+  const [history, setHistory] = useState([]); // jugadas en notación algebraica, la primera es de Rosa
+  const [lastMove, setLastMove] = useState(null); // { fromRow, fromCol, toRow, toCol } de la última jugada
   const [checkChip, setCheckChip] = useState(null); // "them" | "you" | null, con un pop al aparecer
   const [sparklingIds, setSparklingIds] = useState(() => new Set());
   const [ghosts, setGhosts] = useState([]); // piezas capturadas "volando" hacia la bandeja
@@ -146,6 +235,15 @@ function App() {
   const [blackTime, setBlackTime] = useState(INITIAL_CLOCK_SECONDS);
   const [timeoutColor, setTimeoutColor] = useState(null); // "WHITE" | "BLACK" | null: a quién se le acabó el tiempo
   const [menuOpen, setMenuOpen] = useState(false); // menú de las 3 barritas ("Cómo se juega")
+  const [started, setStarted] = useState(false); // false = pantalla de elegir dificultad
+  const [difficulty, setDifficulty] = useState("MEDIUM"); // nivel de la partida en curso
+  const [chosenDifficulty, setChosenDifficulty] = useState("MEDIUM"); // nivel marcado en la pantalla de inicio
+  const [thinking, setThinking] = useState(false); // Celeste está pensando su respuesta
+  const [hint, setHint] = useState(null); // { fromRow, fromCol, toRow, toCol } sugerida
+  const [hintLoading, setHintLoading] = useState(false);
+  const [review, setReview] = useState(null); // null = partida en vivo; si no { boards, moves, index }
+  const [exportOpen, setExportOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const busyRef = useRef(false); // true mientras se espera al backend: evita jugadas dobles por doble click
   const prevPiecesRef = useRef(new Map());
@@ -168,7 +266,10 @@ function App() {
   // se le acabe el tiempo del reloj sí la terminan, así que ahí se bloquea
   // el tablero.
   const gameOver = gameState === "CHECKMATE" || gameState === "DRAW" || Boolean(timeoutColor);
-  const isUserTurn = turn === USER_COLOR && !gameOver;
+  const isUserTurn = turn === USER_COLOR && !gameOver && !review;
+  // En modo repaso se muestra una posición vieja y no se puede jugar.
+  const viewBoard = review ? review.boards[review.index] : board;
+  const viewLastMove = review ? review.moves[review.index - 1] ?? null : lastMove;
   const selectedPiece =
     selected && board ? board[selected.row]?.[selected.col] : null;
   const possibleMoves =
@@ -208,6 +309,11 @@ function App() {
     setCapturedWhite(state.capturedWhite ?? []);
     setCapturedBlack(state.capturedBlack ?? []);
     setCanUndo(Boolean(state.canUndo));
+    setHistory(state.history ?? []);
+    setLastMove(state.lastMove ?? null);
+    if (state.difficulty) setDifficulty(state.difficulty);
+    setHint(null);
+    setReview(null);
     setConnectionError(false);
     prevPiecesRef.current = flattenBoard(state.board);
   }
@@ -252,6 +358,8 @@ function App() {
     setCapturedWhite(state.capturedWhite ?? []);
     setCapturedBlack(state.capturedBlack ?? []);
     setCanUndo(Boolean(state.canUndo));
+    setHistory(state.history ?? []);
+    setLastMove(state.lastMove ?? null);
     setConnectionError(false);
     prevPiecesRef.current = nextPieces;
 
@@ -314,6 +422,7 @@ function App() {
 
   useEffect(() => {
     loadState();
+    preloadSamples();
   }, []);
 
   // Reloj de ajedrez: cada segundo le resta uno al tiempo de quien tiene el
@@ -321,7 +430,7 @@ function App() {
   // si no hay conexión con el backend, o si a alguien ya se le acabó el
   // tiempo. Al llegar a 0 marca el timeout y no sigue descontando de más.
   useEffect(() => {
-    if (!board || gameOver || connectionError) return undefined;
+    if (!board || !started || gameOver || connectionError) return undefined;
 
     const interval = setInterval(() => {
       if (turn === "WHITE") {
@@ -344,10 +453,10 @@ function App() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [board, turn, gameOver, connectionError]);
+  }, [board, started, turn, gameOver, connectionError]);
 
   useEffect(() => {
-    if (timeoutColor) playTimeoutSound();
+    if (timeoutColor) playTimeoutSound(timeoutColor !== USER_COLOR);
   }, [timeoutColor]);
 
   // Con el menú abierto, Escape lo cierra.
@@ -360,6 +469,111 @@ function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [menuOpen]);
 
+  // Repaso del historial: se pide al backend todas las posiciones de la partida
+  // y se navega entre ellas sin tocar la partida real.
+  async function goToPosition(index) {
+    if (!started || busyRef.current) return;
+    const total = history.length;
+    const target = Math.max(0, Math.min(total, index));
+    if (target >= total) {
+      setReview(null);
+      return;
+    }
+    setSelected(null);
+    setHint(null);
+    if (review) {
+      setReview({ ...review, index: target });
+      return;
+    }
+    try {
+      const data = await getPositions();
+      if (data.boards.length !== total + 1) return;
+      setReview({ boards: data.boards, moves: data.moves, index: target });
+    } catch {
+      setConnectionError(true);
+    }
+  }
+
+  const reviewIndexNow = review ? review.index : history.length;
+  const goToPositionRef = useRef(goToPosition);
+  const reviewIndexRef = useRef(reviewIndexNow);
+  useEffect(() => {
+    goToPositionRef.current = goToPosition;
+    reviewIndexRef.current = reviewIndexNow;
+  });
+
+  useEffect(() => {
+    if (!started || menuOpen || exportOpen) return undefined;
+    const onKeyDown = (event) => {
+      const go = goToPositionRef.current;
+      const current = reviewIndexRef.current;
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        go(current - 1);
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        go(current + 1);
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        go(0);
+      } else if (event.key === "End" || event.key === "Escape") {
+        go(Number.MAX_SAFE_INTEGER);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [started, menuOpen, exportOpen]);
+
+  async function handleHint() {
+    if (!isUserTurn || busyRef.current || hintLoading) return;
+    setHintLoading(true);
+    setSelected(null);
+    try {
+      const data = await getHint();
+      if (data.hint) {
+        setHint(data.hint);
+        setMessage("");
+      } else {
+        setMessage("No hay pista disponible");
+      }
+    } catch {
+      setConnectionError(true);
+    } finally {
+      setHintLoading(false);
+    }
+  }
+
+  function gameResult() {
+    if (timeoutColor) return timeoutColor === USER_COLOR ? "0-1" : "1-0";
+    if (gameState === "CHECKMATE") return turn === USER_COLOR ? "0-1" : "1-0";
+    if (gameState === "DRAW") return "1/2-1/2";
+    return "*";
+  }
+
+  const pgnText = buildPgn(history, gameResult(), difficulty);
+
+  async function handleCopyPgn() {
+    try {
+      await navigator.clipboard.writeText(pgnText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setMessage("No se pudo copiar: seleccioná el texto y copialo a mano");
+    }
+  }
+
+  function handleDownloadPgn() {
+    const blob = new Blob([pgnText], { type: "application/x-chess-pgn" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "ajedrez-crossing.pgn";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
   function triggerCheckChip(who) {
     setCheckChip(null);
     // Se saca y se vuelve a poner en el próximo tick para que, si ya estaba
@@ -371,7 +585,7 @@ function App() {
   }
 
   async function handleSquareClick(row, col) {
-    if (!board || busyRef.current) return;
+    if (!board || busyRef.current || review) return;
 
     // El jaque no termina la partida: todavía hay que poder responderlo.
     if (!isUserTurn) {
@@ -394,6 +608,7 @@ function App() {
         }
         setSelected({ row, col });
         setMessage("");
+        playSelectSound();
       }
       return;
     }
@@ -418,6 +633,7 @@ function App() {
       }
       setSelected({ row, col });
       setMessage("");
+      playSelectSound();
       return;
     }
 
@@ -425,12 +641,17 @@ function App() {
     if (!isPossibleMove(row, col)) {
       setSelected(null);
       setMessage("Movimiento inválido");
+      playInvalidSound();
       return;
     }
 
     const movedPieceType = selectedPiece.type;
+    const historyBefore = history.length;
+    const isCastling = movedPieceType === "KING" && Math.abs(col - selected.col) === 2;
     let response;
     busyRef.current = true;
+    setHint(null);
+    setThinking(true);
     try {
       response = await postMove(selected.row, selected.col, row, col);
     } catch {
@@ -438,6 +659,7 @@ function App() {
       return;
     } finally {
       busyRef.current = false;
+      setThinking(false);
     }
     const { capturedCount, promoted } = applyStateAnimated(response.state);
     setSelected(null);
@@ -473,19 +695,34 @@ function App() {
     } else if (capturedCount > 0) {
       playCaptureSound();
     } else {
-      playMoveSound(movedPieceType);
+      if (isCastling) playCastleSound();
+      else playMoveSound(movedPieceType);
+      // Si Celeste respondió con una jugada común, suena aparte (distinto al
+      // tuyo) un momento después para distinguir de quién fue cada una.
+      if ((response.state.history?.length ?? 0) >= historyBefore + 2) {
+        setTimeout(playAiMoveSound, 450);
+      }
     }
   }
 
-  async function handleReset() {
+  // "Reiniciar" y "Jugar de nuevo" vuelven a la pantalla de dificultad.
+  function handleReset() {
+    setChosenDifficulty(difficulty);
+    setExportOpen(false);
+    setStarted(false);
+  }
+
+  async function handleStart() {
     let state;
     try {
-      state = await resetGame();
+      state = await resetGame(chosenDifficulty);
     } catch {
       setConnectionError(true);
       return;
     }
     applyStateInstant(state);
+    setStarted(true);
+    startIfWanted();
     setSelected(null);
     setMessage("");
     setGhosts([]);
@@ -498,7 +735,7 @@ function App() {
   // Cada click vuelve exactamente una ronda: tu última jugada y la respuesta
   // de Celeste (el backend se encarga de deshacer las dos juntas).
   async function handleUndo() {
-    if (!canUndo || busyRef.current) return;
+    if (!canUndo || busyRef.current || review) return;
     let state;
     try {
       state = await undoMove();
@@ -524,7 +761,7 @@ function App() {
       const userWon = timeoutColor !== USER_COLOR;
       return {
         tone: userWon ? "win" : "lose",
-        title: userWon ? "¡Ganaste por tiempo! 🎉" : "Se te acabó el tiempo",
+        title: userWon ? "¡Ganaste por tiempo!" : "Se te acabó el tiempo",
         subtitle: userWon
           ? "A Celeste se le acabó el reloj."
           : "Tu reloj llegó a cero.",
@@ -534,7 +771,7 @@ function App() {
       const userWon = turn !== USER_COLOR;
       return {
         tone: userWon ? "win" : "lose",
-        title: userWon ? "¡Ganaste! 🎉" : "Perdiste",
+        title: userWon ? "¡Ganaste!" : "Perdiste",
         subtitle: userWon
           ? "Le pusiste jaque mate a Celeste."
           : "Te pusieron jaque mate.",
@@ -553,9 +790,7 @@ function App() {
   if (connectionError) {
     return (
       <div className="app" data-bg-mode={background.mode}>
-        <div className="title-sticker">
-          <h1>Ajedrez Crossing</h1>
-        </div>
+        <img className="game-logo" src={logo} alt="Crossing Chess" draggable={false} />
         <p className="error">
           No me pude conectar al backend en <code>http://localhost:8081</code>.
           <br />
@@ -571,6 +806,56 @@ function App() {
   if (!board) return <p className="loading">Conectando con el backend...</p>;
 
   const info = gameOverInfo();
+
+  if (!started) {
+    return (
+      <div
+        className="app"
+        style={{ "--app-bg": `url("${background.file}")` }}
+        data-bg-mode={background.mode}
+      >
+        <img className="game-logo" src={logo} alt="Crossing Chess" draggable={false} />
+
+        <section className="setup-card" aria-label="Elegí la dificultad">
+          <div className="setup-versus">
+            <div className="setup-player pink">
+              <img src={avatarPink} alt="Tu avatar, Rosa" draggable={false} />
+              <span>Vos (Rosa)</span>
+            </div>
+            <span className="setup-vs">VS</span>
+            <div className="setup-player cyan">
+              <img src={avatarCeleste} alt="Avatar de la computadora, Celeste" draggable={false} />
+              <span>Celeste (IA)</span>
+            </div>
+          </div>
+
+          <h2 className="setup-title">Elegí la dificultad</h2>
+          <div className="difficulty-list" role="radiogroup" aria-label="Dificultad de Celeste">
+            {DIFFICULTIES.map((level) => (
+              <button
+                key={level.id}
+                type="button"
+                role="radio"
+                aria-checked={chosenDifficulty === level.id}
+                className={`difficulty-option ${level.id.toLowerCase()} ${
+                  chosenDifficulty === level.id ? "selected" : ""
+                }`}
+                onClick={() => setChosenDifficulty(level.id)}
+              >
+                <strong>{level.name}</strong>
+                <span>{level.text}</span>
+              </button>
+            ))}
+          </div>
+
+          <button type="button" className="reset-btn start-btn" onClick={handleStart}>
+            Empezar a jugar
+          </button>
+        </section>
+        <MusicPlayer />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -605,11 +890,7 @@ function App() {
         <HowToPlay pieceImage={PIECE_IMAGE.WHITE} />
       </aside>
 
-      <div className="title-sticker">
-        <span className="sign-peg sign-peg-left" />
-        <h1>Ajedrez Crossing</h1>
-        <span className="sign-peg sign-peg-right" />
-      </div>
+      <img className="game-logo" src={logo} alt="Crossing Chess" draggable={false} />
 
       <div className="status">
         {!gameOver && gameState === "CHECK" && (
@@ -631,8 +912,18 @@ function App() {
                 const row = toScreenRow(screenRow);
                 return (
                   <div className="board-row" key={row}>
-                    {board[row].map((piece, col) => {
-                      const isDark = (row + col) % 2 === 1;
+                    {viewBoard[row].map((piece, col) => {
+                      // En un tablero de ajedrez la casilla de abajo a la izquierda (a1)
+                      // es oscura; fila 0 / columna 0 es esa esquina.
+                      const isDark = (row + col) % 2 === 0;
+                      const isLastFrom =
+                        viewLastMove && viewLastMove.fromRow === row && viewLastMove.fromCol === col;
+                      const isLastTo =
+                        viewLastMove && viewLastMove.toRow === row && viewLastMove.toCol === col;
+                      const isHintFrom =
+                        hint && !review && hint.fromRow === row && hint.fromCol === col;
+                      const isHintTo =
+                        hint && !review && hint.toRow === row && hint.toCol === col;
                       const isSelected =
                         isUserTurn &&
                         isUserPiece(piece) &&
@@ -640,10 +931,11 @@ function App() {
                         selected.row === row &&
                         selected.col === col;
                       const isPossible = isPossibleMove(row, col);
-                      const isCheckingPiece = checkingPiecePositions.includes(
+                      const isCheckingPiece = !review && checkingPiecePositions.includes(
                         `${row}-${col}`
                       );
                       const isKingInCheck =
+                        !review &&
                         kingInCheckPosition &&
                         kingInCheckPosition.row === row &&
                         kingInCheckPosition.col === col;
@@ -654,11 +946,24 @@ function App() {
                             isSelected ? "selected" : ""
                           } ${isPossible ? "possible-move" : ""} ${
                             isPossible && piece ? "possible-capture" : ""
-                          } ${isCheckingPiece ? "checking-piece" : ""} ${
-                            isKingInCheck ? "king-in-check" : ""
-                          }`}
+                          } ${isLastFrom ? "last-from" : ""} ${isLastTo ? "last-to" : ""} ${
+                            isHintFrom ? "hint-from" : ""
+                          } ${isHintTo ? "hint-to" : ""} ${
+                            isCheckingPiece ? "checking-piece" : ""
+                          } ${isKingInCheck ? "king-in-check" : ""}`}
                           onClick={() => handleSquareClick(row, col)}
-                        />
+                        >
+                          {piece && (
+                            <span
+                              className={`piece-tip ${screenRow === 0 ? "below" : ""} ${
+                                col === 0 ? "edge-left" : ""
+                              } ${col === BOARD_SIZE - 1 ? "edge-right" : ""}`}
+                              role="tooltip"
+                            >
+                              {pieceTooltip(piece)}
+                            </span>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
@@ -667,7 +972,7 @@ function App() {
             </div>
 
             <div className="pieces-layer">
-              {Array.from(flattenBoard(board).values()).map((piece) => {
+              {Array.from(flattenBoard(viewBoard).values()).map((piece) => {
                 const screenRow = toScreenRow(piece.row);
                 return (
                   <div
@@ -683,8 +988,7 @@ function App() {
                     <img
                       className="piece"
                       src={PIECE_IMAGE[piece.color][piece.type]}
-                      alt={`${piece.type} ${piece.color}`}
-                      title={piece.type}
+                      alt={`${PIECE_NAME[piece.type]} ${COLOR_NAME[piece.color]}`}
                       draggable={false}
                     />
                   </div>
@@ -692,7 +996,7 @@ function App() {
               })}
             </div>
 
-            {info && (
+            {info && !review && (
               <div className={`game-over-overlay ${info.tone}`}>
                 <div className="game-over-card">
                   <strong>{info.title}</strong>
@@ -708,52 +1012,57 @@ function App() {
 
         <div className="side-panel">
           <span className={`turn-badge ${turn === "WHITE" ? "pink" : "cyan"}`}>
-            Turno: {turn === "WHITE" ? "Rosa" : "Celeste"}
+            {review
+              ? `Repaso: jugada ${review.index} de ${history.length}`
+              : `Turno: ${turn === "WHITE" ? "Rosa" : "Celeste"}`}
           </span>
 
-          <div className="clocks">
+          <div className="players">
             <div
-              className={`clock cyan ${turn === "BLACK" && !gameOver ? "active" : ""} ${
+              className={`player-card cyan ${turn === "BLACK" && !gameOver ? "active" : ""} ${
                 blackTime <= 30 ? "low" : ""
               }`}
             >
-              <span className="clock-label">Celeste</span>
-              <span className="clock-time">{formatClock(blackTime)}</span>
+              <img className="player-avatar" src={avatarCeleste} alt="Avatar de Celeste" draggable={false} />
+              <div className="player-info">
+                <span className="clock-label">Celeste (IA {DIFFICULTY_NAME[difficulty]})</span>
+                <span className="clock-time">{formatClock(blackTime)}</span>
+                {thinking && <span className="thinking">Pensando...</span>}
+              </div>
             </div>
             <div
-              className={`clock pink ${turn === "WHITE" && !gameOver ? "active" : ""} ${
+              className={`player-card pink ${turn === "WHITE" && !gameOver ? "active" : ""} ${
                 whiteTime <= 30 ? "low" : ""
               }`}
             >
-              <span className="clock-label">Rosa</span>
-              <span className="clock-time">{formatClock(whiteTime)}</span>
+              <img className="player-avatar" src={avatarPink} alt="Tu avatar" draggable={false} />
+              <div className="player-info">
+                <span className="clock-label">Rosa (vos)</span>
+                <span className="clock-time">{formatClock(whiteTime)}</span>
+              </div>
             </div>
           </div>
 
           <div className="tray-group">
-            <p className="tray-label">Comidas por Celeste</p>
+            <div className="tray-head">
+              <p className="tray-label">Comidas por Celeste</p>
+              <span className="tray-points">{totalPoints(capturedBlack)} pts</span>
+            </div>
             <div className="captured-tray" ref={trayBlackRef}>
               {capturedBlack.map((piece) => (
-                <img
-                  key={piece.id}
-                  className="captured-piece"
-                  src={PIECE_IMAGE[piece.color][piece.type]}
-                  alt={`${piece.type} ${piece.color} capturada`}
-                />
+                <CapturedPiece key={piece.id} piece={piece} />
               ))}
             </div>
           </div>
 
           <div className="tray-group">
-            <p className="tray-label">Comidas por Rosa</p>
+            <div className="tray-head">
+              <p className="tray-label">Comidas por Rosa</p>
+              <span className="tray-points">{totalPoints(capturedWhite)} pts</span>
+            </div>
             <div className="captured-tray" ref={trayWhiteRef}>
               {capturedWhite.map((piece) => (
-                <img
-                  key={piece.id}
-                  className="captured-piece"
-                  src={PIECE_IMAGE[piece.color][piece.type]}
-                  alt={`${piece.type} ${piece.color} capturada`}
-                />
+                <CapturedPiece key={piece.id} piece={piece} />
               ))}
             </div>
           </div>
@@ -774,10 +1083,23 @@ function App() {
               ))}
             </div>
           </div>
+        </div>
 
+        <div className="history-group">
+          <MoveHistory
+            history={history}
+            position={reviewIndexNow}
+            onGo={goToPosition}
+          />
           <div className="actions">
-            <button className="undo-btn" onClick={handleUndo} disabled={!canUndo}>
+            <button className="hint-btn" onClick={handleHint} disabled={!isUserTurn || hintLoading || thinking}>
+              {hintLoading ? "Buscando..." : "Pista"}
+            </button>
+            <button className="undo-btn" onClick={handleUndo} disabled={!canUndo || Boolean(review)}>
               Deshacer
+            </button>
+            <button className="export-btn" onClick={() => setExportOpen(true)} disabled={history.length === 0}>
+              Exportar partida
             </button>
             <button className="reset-btn" onClick={handleReset}>
               Reiniciar partida
@@ -786,10 +1108,136 @@ function App() {
         </div>
       </div>
 
+      {exportOpen && (
+        <div className="export-backdrop" onClick={() => setExportOpen(false)}>
+          <div
+            className="export-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Exportar partida"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2>Exportar partida</h2>
+            <p>
+              Formato PGN, el estándar para guardar partidas. Lo podés pegar en
+              Lichess o Chess.com para analizarla.
+            </p>
+            <textarea className="export-text" readOnly value={pgnText} onFocus={(e) => e.target.select()} />
+            <div className="export-actions">
+              <button type="button" className="reset-btn" onClick={handleCopyPgn}>
+                {copied ? "Copiado" : "Copiar"}
+              </button>
+              <button type="button" className="undo-btn" onClick={handleDownloadPgn}>
+                Descargar .pgn
+              </button>
+              <button type="button" className="export-btn" onClick={() => setExportOpen(false)}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <MusicPlayer />
+
       {ghosts.map((ghost) => (
         <CaptureGhost key={ghost.ghostId} ghost={ghost} onDone={() => removeGhost(ghost.ghostId)} />
       ))}
     </div>
+  );
+}
+
+// Una pieza comida dentro de la bandeja, con su valor en puntos al lado.
+function CapturedPiece({ piece }) {
+  return (
+    <span className="captured-item" title={pieceTooltip(piece)}>
+      <img
+        className="captured-piece"
+        src={PIECE_IMAGE[piece.color][piece.type]}
+        alt={`${PIECE_NAME[piece.type]} ${COLOR_NAME[piece.color]} capturada`}
+      />
+      <span className="captured-value">{PIECE_VALUE[piece.type]}</span>
+    </span>
+  );
+}
+
+// Historial de movimientos en notación algebraica: letra de la pieza (R rey,
+// D dama, T torre, A alfil, C caballo; el peón no lleva letra), columna (a-h)
+// y fila (1-8) de destino. "x" es captura, "+" jaque, "#" jaque mate, "O-O" y
+// "O-O-O" enroque corto y largo, "=D" coronación. Una fila por jugada completa:
+// primero Rosa, después Celeste.
+function MoveHistory({ history, position, onGo }) {
+  const listRef = useRef(null);
+
+  // Siempre se muestra la jugada que se está viendo (la más reciente si no se está repasando)
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const current = list.querySelector(".history-cell.latest");
+    if (current && position < history.length) {
+      current.scrollIntoView({ block: "nearest" });
+    } else {
+      list.scrollTop = list.scrollHeight;
+    }
+  }, [history.length, position]);
+
+  const rows = [];
+  for (let i = 0; i < history.length; i += 2) {
+    rows.push({ number: i / 2 + 1, pink: history[i], cyan: history[i + 1], index: i });
+  }
+  // Índice (en history) de la jugada que se está mirando: la posición N es la que queda tras la jugada N
+  const currentIndex = position - 1;
+  const atStart = position <= 0;
+  const atEnd = position >= history.length;
+
+  function Cell({ index }) {
+    const text = history[index];
+    if (!text) return <span className="history-cell" />;
+    return (
+      <button
+        type="button"
+        className={`history-cell history-jump ${index === currentIndex ? "latest" : ""}`}
+        onClick={() => onGo(index + 1)}
+        title="Ver el tablero en esta jugada"
+      >
+        {text}
+      </button>
+    );
+  }
+
+  return (
+    <aside className="history-panel" aria-label="Historial de movimientos">
+      <h2 className="history-title">Historial de movimientos</h2>
+      <div className="history-head">
+        <span className="history-num">#</span>
+        <span className="history-cell pink">Rosa</span>
+        <span className="history-cell cyan">Celeste</span>
+      </div>
+      <ol className="history-list" ref={listRef}>
+        {rows.length === 0 && <li className="history-empty">Todavía no hay jugadas</li>}
+        {rows.map((row) => (
+          <li key={row.number} className="history-row">
+            <span className="history-num">{row.number}.</span>
+            {Cell({ index: row.index })}
+            {Cell({ index: row.index + 1 })}
+          </li>
+        ))}
+      </ol>
+      <div className="history-nav" role="group" aria-label="Navegar el historial">
+        <button type="button" onClick={() => onGo(0)} disabled={atStart} aria-label="Ir al inicio" title="Inicio (tecla Inicio)">
+          |&lt;
+        </button>
+        <button type="button" onClick={() => onGo(position - 1)} disabled={atStart} aria-label="Jugada anterior" title="Anterior (flecha izquierda)">
+          &lt;
+        </button>
+        <button type="button" onClick={() => onGo(position + 1)} disabled={atEnd} aria-label="Jugada siguiente" title="Siguiente (flecha derecha)">
+          &gt;
+        </button>
+        <button type="button" onClick={() => onGo(history.length)} disabled={atEnd} aria-label="Volver a la jugada actual" title="Actual (tecla Fin o Esc)">
+          &gt;|
+        </button>
+      </div>
+    </aside>
   );
 }
 

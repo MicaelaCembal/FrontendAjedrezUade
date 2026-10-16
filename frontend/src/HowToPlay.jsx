@@ -256,8 +256,33 @@ function HowToPlay({ pieceImage }) {
               respuesta de Celeste. El tiempo gastado no se devuelve.
             </li>
             <li>
-              <strong>Reiniciar partida:</strong> arranca un juego nuevo desde
-              cero.
+              <strong>Pista:</strong> te marca en el tablero la jugada que
+              recomienda la computadora. Sirve para aprender, pero pensala
+              vos primero.
+            </li>
+            <li>
+              <strong>Reiniciar partida:</strong> vuelve a la pantalla de
+              dificultad para arrancar un juego nuevo.
+            </li>
+            <li>
+              <strong>Exportar partida:</strong> te da el texto de la partida
+              (formato PGN) para copiarlo o descargarlo y verlo en otros
+              programas de ajedrez.
+            </li>
+            <li>
+              <strong>Dificultad:</strong> antes de empezar elegís entre Fácil,
+              Medio y Difícil. En Fácil Celeste comete errores; en Difícil
+              piensa varias jugadas por adelantado.
+            </li>
+            <li>
+              <strong>Repasar la partida:</strong> con los botones del
+              historial (o las flechas del teclado) volvés a ver cualquier
+              momento de la partida. Con Fin o Esc volvés a la jugada actual.
+            </li>
+            <li>
+              <strong>Música:</strong> el reproductor de abajo a la izquierda
+              tiene varias canciones, pausa, siguiente y volumen. La flechita
+              abre la lista y el volumen de los efectos de sonido.
             </li>
             <li>
               <strong>Fondo:</strong> los circulitos de la derecha cambian el

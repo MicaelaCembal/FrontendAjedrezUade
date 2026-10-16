@@ -1,13 +1,19 @@
 :root {
-  --candy-pink: #ff3ea5;
-  --candy-cyan: #2fd9e8;
-  --wood: #c88a4a;
-  --wood-dark: #7a4a2a;
-  --wood-darker: #5c371e;
-  --moss: #6b8f47;
-  --moss-dark: #4a6530;
-  --ink: #2e1d10;
-  --cream-chip: #fff6fb;
+  /* Paleta Animal Crossing: pasto, cielo, madera del cartel y crema */
+  --candy-pink: #ec6f93;
+  --candy-cyan: #6ccbe8;
+  --wood: #c98e4d;
+  --wood-dark: #8c5a2b;
+  --wood-darker: #5e3a1c;
+  --moss: #78b94a;
+  --moss-dark: #4f8f35;
+  --ink: #4a2f17;
+  --cream-chip: #fdf6dc;
+  --ac-yellow: #f7c52b;
+  --ac-leaf: #5fb8a5;
+  --ac-lavender: #9b86d6;
+  --square-light: #f9f1d3;
+  --square-dark: #a8d58b;
 }
 
 * {
@@ -103,7 +109,7 @@ body {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #f3e4bf, #c9a86a 60%, #8a6a3c 100%);
+  background: radial-gradient(circle at 35% 30%, #f3e4bf, #c9a86a 60%, #8c5a2b 100%);
   border: 2px solid var(--wood-darker);
   box-shadow: 0 3px 4px rgba(0, 0, 0, 0.35);
 }
@@ -154,7 +160,7 @@ body {
 .game-state {
   padding: 8px 18px;
   border-radius: 999px;
-  background: #ffd23f;
+  background: #f7c52b;
   color: var(--ink);
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
 }
@@ -260,13 +266,20 @@ body {
 }
 
 .square.light {
-  background: #ffe9d6;
+  background: var(--square-light);
 }
 .square.dark {
-  background: #f3b88f;
+  background: var(--square-dark);
+}
+/* Última jugada: la casilla de donde salió la pieza (suave) y a la que llegó (más fuerte) */
+.square.last-from {
+  box-shadow: inset 0 0 0 999px rgba(247, 197, 43, 0.3);
+}
+.square.last-to {
+  box-shadow: inset 0 0 0 999px rgba(247, 197, 43, 0.55);
 }
 .square.selected {
-  outline: 4px solid #ffd23f;
+  outline: 4px solid #f7c52b;
   outline-offset: -4px;
 }
 .square.checking-piece {
@@ -294,14 +307,60 @@ body {
   }
 }
 
+/* Cartelito con el nombre de la pieza (aparece al pasar el mouse por la casilla).
+   Está dentro de la casilla pero por encima de la capa de piezas. */
+.piece-tip {
+  position: absolute;
+  bottom: calc(100% - 6px);
+  left: 50%;
+  z-index: 30;
+  --tip-x: -50%;
+  transform: translate(var(--tip-x), 4px);
+  padding: 5px 10px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: #fff6e0;
+  font-family: "Quicksand", sans-serif;
+  font-weight: 700;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0s linear 0.12s;
+}
+.piece-tip.below {
+  bottom: auto;
+  top: calc(100% - 6px);
+}
+/* En las columnas de los bordes el cartelito se alinea al borde de la casilla
+   para no salirse del tablero */
+.piece-tip.edge-left {
+  --tip-x: 0;
+  left: 0;
+}
+.piece-tip.edge-right {
+  --tip-x: 0;
+  left: auto;
+  right: 0;
+}
+.square:hover .piece-tip {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(var(--tip-x), 0);
+  transition-delay: 0.15s;
+}
+
 .square.possible-move::after {
   content: "";
   position: absolute;
-  width: 22%;
-  height: 22%;
-  border-radius: 50%;
-  background: rgba(107, 143, 71, 0.78);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  width: 45%;
+  height: 45%;
+  background: url("/move-hint.png") center / contain no-repeat;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+  pointer-events: none;
 }
 .square.possible-capture::after {
   width: 76%;
@@ -343,15 +402,15 @@ body {
 }
 @keyframes sparkle {
   0% {
-    filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.35)) drop-shadow(0 0 0 rgba(255, 210, 63, 0.9));
+    filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.35)) drop-shadow(0 0 0 rgba(247, 197, 43, 0.9));
     transform: scale(1);
   }
   40% {
-    filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.35)) drop-shadow(0 0 14px rgba(255, 210, 63, 1));
+    filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.35)) drop-shadow(0 0 14px rgba(247, 197, 43, 1));
     transform: scale(1.18);
   }
   100% {
-    filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.35)) drop-shadow(0 0 0 rgba(255, 210, 63, 0));
+    filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.35)) drop-shadow(0 0 0 rgba(247, 197, 43, 0));
     transform: scale(1);
   }
 }
@@ -396,7 +455,7 @@ body {
 }
 
 .game-over-overlay.win {
-  background: linear-gradient(160deg, rgba(255, 184, 56, 0.55), rgba(255, 62, 165, 0.6));
+  background: linear-gradient(160deg, rgba(255, 184, 56, 0.55), rgba(236, 111, 147, 0.6));
 }
 .game-over-overlay.lose {
   background: rgba(40, 40, 46, 0.72);
@@ -528,9 +587,34 @@ body {
   }
 }
 
+.tray-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-bottom: 6px;
+}
+
+.tray-head .tray-label {
+  font-size: 0.7rem;
+  padding: 3px 9px;
+}
+
+.tray-points {
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: var(--ink);
+  background: #f7c52b;
+  padding: 2px 10px;
+  border-radius: 999px;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+}
+
 .tray-label {
   display: inline-block;
-  margin: 0 0 6px;
+  margin: 0;
   font-family: "Baloo 2", sans-serif;
   font-weight: 700;
   font-size: 0.8rem;
@@ -547,10 +631,37 @@ body {
   flex-wrap: wrap;
   gap: 4px;
   min-height: 44px;
-  background: rgba(255, 246, 251, 0.75);
+  background: rgba(253, 246, 220, 0.75);
   border-radius: 14px;
   padding: 8px;
   box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15);
+}
+
+.captured-item {
+  position: relative;
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Valor en puntos de la pieza comida, como una chapita en la esquina */
+.captured-value {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff6e0;
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 800;
+  font-size: 0.62rem;
+  line-height: 14px;
+  text-align: center;
 }
 
 .captured-piece {
@@ -569,6 +680,109 @@ body {
     transform: scale(1);
     opacity: 1;
   }
+}
+
+/* ---------- Historial de movimientos ---------- */
+
+.history-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(210px, 70vw);
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(253, 246, 220, 0.82);
+  border: 2px solid var(--wood-darker);
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.2);
+}
+
+.history-title {
+  margin: 0;
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 800;
+  font-size: 1rem;
+  line-height: 1.15;
+  color: var(--ink);
+  text-align: center;
+}
+
+.history-head,
+.history-row {
+  display: grid;
+  grid-template-columns: 30px 1fr 1fr;
+  align-items: center;
+  gap: 4px;
+}
+
+.history-head {
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.history-head .history-cell {
+  text-align: center;
+  padding: 2px 4px;
+  border-radius: 999px;
+}
+.history-head .history-cell.pink {
+  background: var(--candy-pink);
+  color: white;
+}
+.history-head .history-cell.cyan {
+  background: var(--candy-cyan);
+  color: var(--ink);
+}
+
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(420px, 55vh);
+  min-height: 120px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.history-row {
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(122, 74, 42, 0.15);
+  font-variant-numeric: tabular-nums;
+}
+.history-row:nth-child(even) {
+  background: rgba(200, 138, 74, 0.1);
+}
+
+.history-num {
+  color: #8c5a2b;
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-align: right;
+  padding-right: 2px;
+}
+
+.history-cell {
+  font-family: "Quicksand", sans-serif;
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--ink);
+  text-align: center;
+  padding: 1px 4px;
+  border-radius: 8px;
+}
+/* La jugada más reciente queda marcada */
+.history-cell.latest {
+  background: #f7c52b;
+}
+
+.history-empty {
+  padding: 18px 6px;
+  text-align: center;
+  color: #8c5a2b;
+  font-weight: 600;
+  font-size: 0.85rem;
 }
 
 .bg-picker {
@@ -598,7 +812,7 @@ body {
   transform: scale(1.08);
 }
 .bg-swatch.active {
-  border-color: #ffd23f;
+  border-color: #f7c52b;
   box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25);
 }
 
@@ -625,7 +839,7 @@ body {
   transition: transform 0.12s ease;
 }
 .undo-btn {
-  background: #7a9c8e;
+  background: var(--ac-leaf);
 }
 .reset-btn:hover,
 .undo-btn:hover {
@@ -698,7 +912,7 @@ body {
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
 }
 .menu-btn:focus-visible {
-  outline: 3px solid #ffd23f;
+  outline: 3px solid #f7c52b;
   outline-offset: 3px;
 }
 
@@ -821,7 +1035,7 @@ body {
   content: "–";
 }
 .howto-section summary:focus-visible {
-  outline: 3px solid #ffd23f;
+  outline: 3px solid #f7c52b;
   outline-offset: -3px;
 }
 
@@ -909,10 +1123,10 @@ body {
   justify-content: center;
 }
 .mini-cell.light {
-  background: #ffe9d6;
+  background: var(--square-light);
 }
 .mini-cell.dark {
-  background: #f3b88f;
+  background: var(--square-dark);
 }
 .mini-cell img {
   width: 96%;
@@ -959,4 +1173,509 @@ body {
 .piece-card strong {
   font-family: "Baloo 2", system-ui, sans-serif;
   font-size: 1rem;
+}
+/* ---------- Tarjetas de jugador (avatar + reloj) ---------- */
+
+.players {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.player-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 16px;
+  background: var(--wood-dark);
+  border: 1px solid var(--wood-darker);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+  opacity: 0.65;
+  transform: scale(0.97);
+  transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s ease;
+}
+.player-card.active {
+  opacity: 1;
+  transform: scale(1);
+}
+.player-card.active.pink {
+  background: var(--candy-pink);
+}
+.player-card.active.cyan {
+  background: var(--candy-cyan);
+}
+.player-card.active.cyan .clock-label,
+.player-card.active.cyan .clock-time,
+.player-card.active.cyan .thinking {
+  color: var(--ink);
+}
+.player-card.low.active {
+  animation: clockLowPulse 0.8s ease-in-out infinite;
+}
+
+.player-avatar {
+  width: 52px;
+  height: 64px;
+  object-fit: contain;
+  object-position: center top;
+  flex: none;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.player-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.player-info .clock-label {
+  text-transform: none;
+  font-size: 0.74rem;
+  line-height: 1.15;
+}
+
+.thinking {
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 700;
+  font-size: 0.74rem;
+  color: #fff6e0;
+  animation: thinkingBlink 1s ease-in-out infinite;
+}
+@keyframes thinkingBlink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ---------- Botones nuevos: pista y exportar ---------- */
+
+.hint-btn,
+.export-btn {
+  padding: 12px 20px;
+  border-radius: 999px;
+  border: none;
+  color: white;
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.3);
+  transition: transform 0.12s ease;
+}
+.hint-btn {
+  background: var(--ac-yellow);
+  color: var(--ink);
+}
+.export-btn {
+  background: var(--ac-lavender);
+}
+.hint-btn:hover,
+.export-btn:hover {
+  transform: translateY(-2px);
+}
+.hint-btn:active,
+.export-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+.hint-btn:disabled,
+.export-btn:disabled,
+.undo-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* La pista marca la pieza a mover y la casilla de destino */
+.square.hint-from {
+  box-shadow: inset 0 0 0 999px rgba(155, 134, 214, 0.55);
+}
+.square.hint-to {
+  box-shadow: inset 0 0 0 999px rgba(155, 134, 214, 0.55);
+  outline: 4px dashed #7a5fd0;
+  outline-offset: -4px;
+  animation: hintPulse 1s ease-in-out infinite;
+}
+@keyframes hintPulse {
+  0%,
+  100% {
+    outline-color: #7a5fd0;
+  }
+  50% {
+    outline-color: #e1d8ff;
+  }
+}
+
+/* ---------- Navegación del historial ---------- */
+
+.history-jump {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+.history-jump:hover {
+  background: rgba(247, 197, 43, 0.4);
+}
+.history-jump.latest {
+  background: #f7c52b;
+}
+
+.history-nav {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.history-nav button {
+  flex: 1;
+  padding: 6px 0;
+  border: none;
+  border-radius: 10px;
+  background: var(--ink);
+  color: white;
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 800;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.history-nav button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ---------- Pantalla de dificultad ---------- */
+
+.setup-card {
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 22px 26px;
+  border-radius: 24px;
+  background: var(--cream-chip);
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.25);
+  color: var(--ink);
+}
+
+.setup-versus {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: clamp(14px, 6vw, 40px);
+}
+.setup-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 700;
+}
+.setup-player img {
+  height: clamp(120px, 26vw, 170px);
+  width: auto;
+  object-fit: contain;
+}
+.setup-player span {
+  padding: 2px 14px;
+  border-radius: 999px;
+  font-size: 0.95rem;
+}
+.setup-player.pink span {
+  background: var(--candy-pink);
+  color: white;
+}
+.setup-player.cyan span {
+  background: var(--candy-cyan);
+  color: var(--ink);
+}
+.setup-vs {
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 800;
+  font-size: 1.6rem;
+  margin-bottom: 40px;
+}
+
+.setup-title {
+  margin: 0;
+  font-family: "Baloo 2", sans-serif;
+  font-size: 1.35rem;
+}
+
+.difficulty-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+.difficulty-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  padding: 10px 16px;
+  border-radius: 16px;
+  border: 3px solid transparent;
+  background: white;
+  color: var(--ink);
+  font-family: "Quicksand", sans-serif;
+  cursor: pointer;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15);
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+.difficulty-option strong {
+  font-family: "Baloo 2", sans-serif;
+  font-size: 1.1rem;
+}
+.difficulty-option span {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+.difficulty-option:hover {
+  transform: translateY(-2px);
+}
+.difficulty-option.selected {
+  border-color: var(--ink);
+  background: #fff3c4;
+}
+
+.start-btn {
+  width: 100%;
+  font-size: 1.15rem;
+}
+
+/* ---------- Exportar partida ---------- */
+
+.export-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.5);
+}
+.export-card {
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  border-radius: 20px;
+  background: var(--cream-chip);
+  color: var(--ink);
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.3);
+}
+.export-card h2 {
+  margin: 0;
+  font-family: "Baloo 2", sans-serif;
+}
+.export-card p {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+.export-text {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  box-sizing: border-box;
+  padding: 10px;
+  border-radius: 12px;
+  border: 2px solid var(--wood-dark);
+  background: white;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+.export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.export-actions button {
+  padding: 8px 18px;
+  font-size: 0.95rem;
+}
+
+/* ---------- Logo del juego ---------- */
+
+.game-logo {
+  display: block;
+  height: clamp(84px, 16vh, 128px);
+  width: auto;
+  max-width: 92vw;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.3));
+  user-select: none;
+}
+
+/* ---------- Historial + botones a su derecha ---------- */
+
+.history-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.history-group .actions {
+  width: 180px;
+}
+.history-group .actions button {
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 0.95rem;
+}
+
+/* ---------- Reproductor de música ---------- */
+
+.music-player {
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(420px, calc(100vw - 28px));
+  font-family: "Quicksand", sans-serif;
+}
+
+.music-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: var(--cream-chip);
+  border: 3px solid var(--wood-dark);
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.25);
+}
+
+.music-now {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  padding-left: 4px;
+}
+.music-now-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--moss-dark);
+}
+.music-now-title {
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.music-btn {
+  flex: none;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 999px;
+  background: var(--moss);
+  color: white;
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 800;
+  font-size: 0.8rem;
+  cursor: pointer;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25);
+  transition: transform 0.12s ease;
+}
+.music-btn:hover {
+  transform: translateY(-1px);
+}
+.music-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
+}
+.music-btn.music-play {
+  background: var(--ac-yellow);
+  color: var(--ink);
+  min-width: 40px;
+}
+.music-btn.off {
+  background: var(--wood-dark);
+}
+
+.music-panel {
+  padding: 12px 14px 14px;
+  border-radius: 20px;
+  background: var(--cream-chip);
+  border: 3px solid var(--wood-dark);
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.25);
+  color: var(--ink);
+}
+.music-panel-title {
+  margin: 0 0 6px;
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 800;
+  font-size: 1rem;
+}
+.music-tracks {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.music-track {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  font-family: "Quicksand", sans-serif;
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.music-track:hover {
+  background: rgba(120, 185, 74, 0.2);
+}
+.music-track.current {
+  background: var(--ac-yellow);
+}
+.music-track-mark {
+  width: 18px;
+  text-align: center;
+  font-weight: 800;
+}
+.music-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.music-slider input[type="range"] {
+  width: 100%;
+  accent-color: var(--moss-dark);
 }
