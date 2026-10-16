@@ -9,6 +9,7 @@ import {
   playPromotionSound,
   playTimeoutSound,
 } from "./sound";
+import HowToPlay from "./HowToPlay";
 import "./App.css";
 
 import rookPink from "./assets/pieces/rosa/rookPink.png";
@@ -306,6 +307,7 @@ function App() {
   const [whiteTime, setWhiteTime] = useState(INITIAL_CLOCK_SECONDS);
   const [blackTime, setBlackTime] = useState(INITIAL_CLOCK_SECONDS);
   const [timeoutColor, setTimeoutColor] = useState(null); // "WHITE" | "BLACK" | null: a quién se le acabó el tiempo
+  const [menuOpen, setMenuOpen] = useState(false); // menú de las 3 barritas ("Cómo se juega")
 
   const prevPiecesRef = useRef(new Map());
   const boardElRef = useRef(null);
@@ -505,6 +507,16 @@ function App() {
     if (timeoutColor) playTimeoutSound();
   }, [timeoutColor]);
 
+  // Con el menú abierto, Escape lo cierra.
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [menuOpen]);
+
   function triggerCheckChip(who) {
     setCheckChip(null);
     // Se saca y se vuelve a poner en el próximo tick para que, si ya estaba
@@ -693,6 +705,33 @@ function App() {
       style={{ "--app-bg": `url("${background.file}")` }}
       data-bg-mode={background.mode}
     >
+      <button
+        type="button"
+        className={`menu-btn ${menuOpen ? "open" : ""}`}
+        aria-label={menuOpen ? "Cerrar la guía" : "Abrir la guía de cómo se juega"}
+        aria-expanded={menuOpen}
+        aria-controls="howto-drawer"
+        onClick={() => setMenuOpen((open) => !open)}
+      >
+        <span className="menu-bar" />
+        <span className="menu-bar" />
+        <span className="menu-bar" />
+      </button>
+
+      <div
+        className={`help-backdrop ${menuOpen ? "open" : ""}`}
+        onClick={() => setMenuOpen(false)}
+      />
+      <aside
+        id="howto-drawer"
+        className={`help-drawer ${menuOpen ? "open" : ""}`}
+        aria-hidden={!menuOpen}
+        aria-label="Cómo se juega"
+      >
+        <h2 className="help-title">Cómo se juega</h2>
+        <HowToPlay pieceImage={PIECE_IMAGE.WHITE} />
+      </aside>
+
       <div className="title-sticker">
         <span className="sign-peg sign-peg-left" />
         <h1>Ajedrez Crossing</h1>
