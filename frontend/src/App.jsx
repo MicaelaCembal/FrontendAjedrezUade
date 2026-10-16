@@ -128,6 +128,7 @@ function App() {
   const [connectionError, setConnectionError] = useState(false);
   const [capturedWhite, setCapturedWhite] = useState([]);
   const [capturedBlack, setCapturedBlack] = useState([]);
+  const [canUndo, setCanUndo] = useState(false);
   const [checkChip, setCheckChip] = useState(null); // "them" | "you" | null, con un pop al aparecer
   const [sparklingIds, setSparklingIds] = useState(() => new Set());
   const [ghosts, setGhosts] = useState([]); // piezas capturadas "volando" hacia la bandeja
@@ -195,6 +196,7 @@ function App() {
     setKingInCheckPosition(state.kingInCheckPosition ?? null);
     setCapturedWhite(state.capturedWhite ?? []);
     setCapturedBlack(state.capturedBlack ?? []);
+    setCanUndo(Boolean(state.canUndo));
     setConnectionError(false);
     prevPiecesRef.current = flattenBoard(state.board);
   }
@@ -237,6 +239,7 @@ function App() {
     setKingInCheckPosition(state.kingInCheckPosition ?? null);
     setCapturedWhite(state.capturedWhite ?? []);
     setCapturedBlack(state.capturedBlack ?? []);
+    setCanUndo(Boolean(state.canUndo));
     setConnectionError(false);
     prevPiecesRef.current = nextPieces;
 
@@ -466,6 +469,7 @@ function App() {
   }
 
   async function handleUndo() {
+    if (!canUndo) return;
     const state = await undoMove();
     applyStateInstant(state);
     setSelected(null);
@@ -737,7 +741,7 @@ function App() {
           </div>
 
           <div className="actions">
-            <button className="undo-btn" onClick={handleUndo}>
+            <button className="undo-btn" onClick={handleUndo} disabled={!canUndo}>
               Deshacer
             </button>
             <button className="reset-btn" onClick={handleReset}>
