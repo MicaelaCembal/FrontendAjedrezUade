@@ -79,181 +79,6 @@ function loadSavedBackgroundId() {
   return DEFAULT_BACKGROUND_ID;
 }
 
-function isInsideBoard(row, col) {
-  return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE;
-}
-
-function getPossibleMoves(board, row, col) {
-  const piece = board[row][col];
-  if (!piece) return [];
-
-  const moves = [];
-  const addMove = (targetRow, targetCol) => {
-    if (!isInsideBoard(targetRow, targetCol)) return false;
-
-    const targetPiece = board[targetRow][targetCol];
-    if (!targetPiece) {
-      moves.push({ row: targetRow, col: targetCol });
-      return true;
-    }
-
-    if (targetPiece.color !== piece.color) {
-      moves.push({ row: targetRow, col: targetCol });
-    }
-    return false;
-  };
-
-  const addSlidingMoves = (directions) => {
-    directions.forEach(([rowStep, colStep]) => {
-      let targetRow = row + rowStep;
-      let targetCol = col + colStep;
-      while (addMove(targetRow, targetCol)) {
-        targetRow += rowStep;
-        targetCol += colStep;
-      }
-    });
-  };
-
-  if (piece.type === "PAWN") {
-    const direction = piece.color === "WHITE" ? 1 : -1;
-    const startRow = piece.color === "WHITE" ? 1 : 6;
-    const oneStepRow = row + direction;
-
-    if (isInsideBoard(oneStepRow, col) && !board[oneStepRow][col]) {
-      moves.push({ row: oneStepRow, col });
-      const twoStepRow = row + direction * 2;
-      if (row === startRow && !board[twoStepRow][col]) {
-        moves.push({ row: twoStepRow, col });
-      }
-    }
-
-    [-1, 1].forEach((colStep) => {
-      const targetRow = row + direction;
-      const targetCol = col + colStep;
-      if (
-        isInsideBoard(targetRow, targetCol) &&
-        board[targetRow][targetCol] &&
-        board[targetRow][targetCol].color !== piece.color
-      ) {
-        moves.push({ row: targetRow, col: targetCol });
-      }
-    });
-  }
-
-  if (piece.type === "KNIGHT") {
-    [
-      [-2, -1],
-      [-2, 1],
-      [-1, -2],
-      [-1, 2],
-      [1, -2],
-      [1, 2],
-      [2, -1],
-      [2, 1],
-    ].forEach(([rowStep, colStep]) => addMove(row + rowStep, col + colStep));
-  }
-
-  if (piece.type === "BISHOP" || piece.type === "QUEEN") {
-    addSlidingMoves([
-      [-1, -1],
-      [-1, 1],
-      [1, -1],
-      [1, 1],
-    ]);
-  }
-
-  if (piece.type === "ROOK" || piece.type === "QUEEN") {
-    addSlidingMoves([
-      [-1, 0],
-      [1, 0],
-      [0, -1],
-      [0, 1],
-    ]);
-  }
-
-  if (piece.type === "KING") {
-    for (let rowStep = -1; rowStep <= 1; rowStep += 1) {
-      for (let colStep = -1; colStep <= 1; colStep += 1) {
-        if (rowStep !== 0 || colStep !== 0) {
-          addMove(row + rowStep, col + colStep);
-        }
-      }
-    }
-  }
-
-  return moves;
-}
-
-function cloneBoardWithMove(board, fromRow, fromCol, toRow, toCol) {
-  const nextBoard = board.map((boardRow) => [...boardRow]);
-  nextBoard[toRow][toCol] = nextBoard[fromRow][fromCol];
-  nextBoard[fromRow][fromCol] = null;
-  return nextBoard;
-}
-
-function findKing(board, color) {
-  for (let row = 0; row < BOARD_SIZE; row += 1) {
-    for (let col = 0; col < BOARD_SIZE; col += 1) {
-      const piece = board[row][col];
-      if (piece?.color === color && piece.type === "KING") {
-        return { row, col };
-      }
-    }
-  }
-  return null;
-}
-
-function isSquareAttackedBy(board, row, col, attackingColor) {
-  for (let attackerRow = 0; attackerRow < BOARD_SIZE; attackerRow += 1) {
-    for (let attackerCol = 0; attackerCol < BOARD_SIZE; attackerCol += 1) {
-      const piece = board[attackerRow][attackerCol];
-      if (
-        piece?.color === attackingColor &&
-        getPossibleMoves(board, attackerRow, attackerCol).some(
-          (move) => move.row === row && move.col === col
-        )
-      ) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-function leavesKingInCheck(board, fromRow, fromCol, toRow, toCol, color) {
-  const nextBoard = cloneBoardWithMove(
-    board,
-    fromRow,
-    fromCol,
-    toRow,
-    toCol
-  );
-  const king = findKing(nextBoard, color);
-  return !king || isSquareAttackedBy(nextBoard, king.row, king.col, color === "WHITE" ? "BLACK" : "WHITE");
-}
-
-function getCheckingPiecePositions(board, color) {
-  const king = findKing(board, color);
-  if (!king) return [];
-
-  const positions = [];
-  const opponentColor = color === "WHITE" ? "BLACK" : "WHITE";
-  for (let row = 0; row < BOARD_SIZE; row += 1) {
-    for (let col = 0; col < BOARD_SIZE; col += 1) {
-      const piece = board[row][col];
-      if (
-        piece?.color === opponentColor &&
-        getPossibleMoves(board, row, col).some(
-          (move) => move.row === king.row && move.col === king.col
-        )
-      ) {
-        positions.push(`${row}-${col}`);
-      }
-    }
-  }
-  return positions;
-}
-
 // Convierte el tablero (matriz 8x8) en una lista plana de piezas vivas,
 // indexada por su id. Se usa tanto para dibujar la capa de piezas como para
 // comparar "tablero anterior" contra "tablero nuevo" y detectar capturas y
@@ -295,6 +120,9 @@ function App() {
   const [board, setBoard] = useState(null);
   const [turn, setTurn] = useState("WHITE");
   const [gameState, setGameState] = useState("IN_PROGRESS");
+  const [legalMoves, setLegalMoves] = useState([]);
+  const [checkingPiecePositions, setCheckingPiecePositions] = useState([]);
+  const [kingInCheckPosition, setKingInCheckPosition] = useState(null);
   const [selected, setSelected] = useState(null); // { row, col }
   const [message, setMessage] = useState("");
   const [connectionError, setConnectionError] = useState(false);
@@ -330,34 +158,28 @@ function App() {
   // el tablero.
   const gameOver = gameState === "CHECKMATE" || gameState === "DRAW" || Boolean(timeoutColor);
   const isUserTurn = turn === USER_COLOR && !gameOver;
-  const checkingPiecePositions =
-    board && gameState === "CHECK"
-      ? getCheckingPiecePositions(board, turn)
-      : [];
-  const kingInCheckPosition =
-    board && gameState === "CHECK" ? findKing(board, turn) : null;
   const selectedPiece =
     selected && board ? board[selected.row]?.[selected.col] : null;
   const possibleMoves =
     isUserTurn && isUserPiece(selectedPiece)
-      ? getPossibleMoves(board, selected.row, selected.col).filter(
-          (move) =>
-            gameState !== "CHECK" ||
-            !leavesKingInCheck(
-              board,
-              selected.row,
-              selected.col,
-              move.row,
-              move.col,
-              turn
-            )
-        )
+      ? legalMoves
+          .filter(
+            (move) =>
+              move.fromRow === selected.row && move.fromCol === selected.col
+          )
+          .map((move) => ({ row: move.toRow, col: move.toCol }))
       : [];
 
   function isPossibleMove(row, col) {
     return possibleMoves.some(
       (move) => move.row === row && move.col === col
     );
+  }
+
+  function stateMovesForPiece(row, col) {
+    return legalMoves
+      .filter((move) => move.fromRow === row && move.fromCol === col)
+      .map((move) => ({ row: move.toRow, col: move.toCol }));
   }
 
   // Aplica un estado nuevo del backend tal cual, sin animar nada. Se usa al
@@ -368,6 +190,9 @@ function App() {
     setBoard(state.board);
     setTurn(state.turn);
     setGameState(state.gameState);
+    setLegalMoves(state.legalMoves ?? []);
+    setCheckingPiecePositions(state.checkingPiecePositions ?? []);
+    setKingInCheckPosition(state.kingInCheckPosition ?? null);
     setCapturedWhite(state.capturedWhite ?? []);
     setCapturedBlack(state.capturedBlack ?? []);
     setConnectionError(false);
@@ -407,6 +232,9 @@ function App() {
     setBoard(state.board);
     setTurn(state.turn);
     setGameState(state.gameState);
+    setLegalMoves(state.legalMoves ?? []);
+    setCheckingPiecePositions(state.checkingPiecePositions ?? []);
+    setKingInCheckPosition(state.kingInCheckPosition ?? null);
     setCapturedWhite(state.capturedWhite ?? []);
     setCapturedBlack(state.capturedBlack ?? []);
     setConnectionError(false);
@@ -540,13 +368,13 @@ function App() {
     // Nada seleccionado todavía: solo se puede seleccionar una pieza propia del usuario
     if (!selected) {
       if (isUserPiece(clickedPiece)) {
-        const hasLegalResponse =
-          gameState !== "CHECK" ||
-          getPossibleMoves(board, row, col).some(
-            (move) => !leavesKingInCheck(board, row, col, move.row, move.col, turn)
+        const legalMoves = stateMovesForPiece(row, col);
+        if (legalMoves.length === 0) {
+          setMessage(
+            gameState === "CHECK"
+              ? "Esa pieza no puede resolver el jaque"
+              : "Esa pieza no tiene movimientos válidos"
           );
-        if (!hasLegalResponse) {
-          setMessage("Esa pieza no puede resolver el jaque");
           return;
         }
         setSelected({ row, col });
@@ -563,14 +391,14 @@ function App() {
 
     // Permitir cambiar la selección directamente a otra pieza propia del usuario
     if (isUserPiece(clickedPiece)) {
-      const hasLegalResponse =
-        gameState !== "CHECK" ||
-        getPossibleMoves(board, row, col).some(
-          (move) => !leavesKingInCheck(board, row, col, move.row, move.col, turn)
-        );
-      if (!hasLegalResponse) {
+      const legalMoves = stateMovesForPiece(row, col);
+      if (legalMoves.length === 0) {
         setSelected(null);
-        setMessage("Esa pieza no puede resolver el jaque");
+        setMessage(
+          gameState === "CHECK"
+            ? "Esa pieza no puede resolver el jaque"
+            : "Esa pieza no tiene movimientos válidos"
+        );
         return;
       }
       setSelected({ row, col });
@@ -579,6 +407,12 @@ function App() {
     }
 
     // Click en otra casilla (vacía o pieza rival para capturar): intentar mover
+    if (!isPossibleMove(row, col)) {
+      setSelected(null);
+      setMessage("Movimiento inválido");
+      return;
+    }
+
     const movedPieceType = selectedPiece.type;
     const response = await postMove(selected.row, selected.col, row, col);
     const { capturedCount, promoted } = applyStateAnimated(response.state);
