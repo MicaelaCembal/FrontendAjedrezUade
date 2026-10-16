@@ -63,7 +63,7 @@ const BOARD_SIZE = 8;
 const BACKGROUNDS = [
   { id: "fondo1", label: "Bosque", file: "/backgrounds/fondo1.jpg", mode: "cover" },
   { id: "fondo2", label: "Isla", file: "/backgrounds/fondo2.svg", mode: "cover" },
-  { id: "fondo3", label: "Hojitas", file: "/backgrounds/fondo3.jfif", mode: "til e" },
+  { id: "fondo3", label: "Hojitas", file: "/backgrounds/fondo3.jfif", mode: "tile" },
   { id: "fondo4", label: "Fondo 4", file: "/backgrounds/fondo4.webp", mode: "cover" },
   { id: "fondo5", label: "Fondo 5", file: "/backgrounds/fondo5.webp", mode: "cover" },
 ];
@@ -114,12 +114,21 @@ function formatClock(totalSeconds) {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
+// Explicación de cada tipo de empate, tal como lo informa el backend
+const DRAW_REASON_TEXT = {
+  STALEMATE: "Ahogado: nadie tiene movimientos legales, pero nadie está en jaque.",
+  THREEFOLD_REPETITION: "La misma posición se repitió tres veces.",
+  INSUFFICIENT_MATERIAL: "No quedan piezas suficientes para dar jaque mate.",
+  FIFTY_MOVE_RULE: "Pasaron 50 jugadas sin mover un peón ni comer ninguna pieza.",
+};
+
 let ghostIdCounter = 0;
 
 function App() {
   const [board, setBoard] = useState(null);
   const [turn, setTurn] = useState("WHITE");
   const [gameState, setGameState] = useState("IN_PROGRESS");
+  const [drawReason, setDrawReason] = useState("NONE"); // STALEMATE, THREEFOLD_REPETITION, INSUFFICIENT_MATERIAL, FIFTY_MOVE_RULE
   const [legalMoves, setLegalMoves] = useState([]);
   const [checkingPiecePositions, setCheckingPiecePositions] = useState([]);
   const [kingInCheckPosition, setKingInCheckPosition] = useState(null);
@@ -138,6 +147,7 @@ function App() {
   const [timeoutColor, setTimeoutColor] = useState(null); // "WHITE" | "BLACK" | null: a quién se le acabó el tiempo
   const [menuOpen, setMenuOpen] = useState(false); // menú de las 3 barritas ("Cómo se juega")
 
+  const busyRef = useRef(false); // true mientras se espera al backend: evita jugadas dobles por doble click
   const prevPiecesRef = useRef(new Map());
   const boardElRef = useRef(null);
   const trayWhiteRef = useRef(null);
@@ -191,6 +201,7 @@ function App() {
     setBoard(state.board);
     setTurn(state.turn);
     setGameState(state.gameState);
+    setDrawReason(state.drawReason ?? "NONE");
     setLegalMoves(state.legalMoves ?? []);
     setCheckingPiecePositions(state.checkingPiecePositions ?? []);
     setKingInCheckPosition(state.kingInCheckPosition ?? null);
@@ -234,6 +245,7 @@ function App() {
     setBoard(state.board);
     setTurn(state.turn);
     setGameState(state.gameState);
+    setDrawReason(state.drawReason ?? "NONE");
     setLegalMoves(state.legalMoves ?? []);
     setCheckingPiecePositions(state.checkingPiecePositions ?? []);
     setKingInCheckPosition(state.kingInCheckPosition ?? null);
@@ -359,7 +371,7 @@ function App() {
   }
 
   async function handleSquareClick(row, col) {
-    if (!board) return;
+    if (!board || busyRef.current) return;
 
     // El jaque no termina la partida: todavía hay que poder responderlo.
     if (!isUserTurn) {
@@ -417,7 +429,16 @@ function App() {
     }
 
     const movedPieceType = selectedPiece.type;
-    const response = await postMove(selected.row, selected.col, row, col);
+    let response;
+    busyRef.current = true;
+    try {
+      response = await postMove(selected.row, selected.col, row, col);
+    } catch {
+      setConnectionError(true);
+      return;
+    } finally {
+      busyRef.current = false;
+    }
     const { capturedCount, promoted } = applyStateAnimated(response.state);
     setSelected(null);
 
@@ -457,7 +478,13 @@ function App() {
   }
 
   async function handleReset() {
-    const state = await resetGame();
+    let state;
+    try {
+      state = await resetGame();
+    } catch {
+      setConnectionError(true);
+      return;
+    }
     applyStateInstant(state);
     setSelected(null);
     setMessage("");
@@ -468,9 +495,17 @@ function App() {
     setTimeoutColor(null);
   }
 
+  // Cada click vuelve exactamente una ronda: tu última jugada y la respuesta
+  // de Celeste (el backend se encarga de deshacer las dos juntas).
   async function handleUndo() {
-    if (!canUndo) return;
-    const state = await undoMove();
+    if (!canUndo || busyRef.current) return;
+    let state;
+    try {
+      state = await undoMove();
+    } catch {
+      setConnectionError(true);
+      return;
+    }
     applyStateInstant(state);
     setSelected(null);
     setMessage("");
@@ -509,7 +544,7 @@ function App() {
       return {
         tone: "draw",
         title: "Tablas",
-        subtitle: "Ahogado: nadie tiene movimientos legales, pero nadie está en jaque.",
+        subtitle: DRAW_REASON_TEXT[drawReason] ?? DRAW_REASON_TEXT.STALEMATE,
       };
     }
     return null;
