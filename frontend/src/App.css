@@ -62,6 +62,12 @@ body {
   flex-direction: column;
   align-items: center;
   min-height: 100vh;
+  /* Referencia para el reproductor: queda anclado a la página y se mueve
+     con ella al hacer scroll, igual que el resto del contenido. */
+  position: relative;
+  /* Evita la barra de scroll horizontal por los cartelitos de las piezas que
+     asoman por el borde en pantallas angostas */
+  overflow-x: clip;
   padding: clamp(16px, 4vh, 40px) 16px clamp(24px, 5vh, 56px);
   gap: clamp(10px, 2vh, 22px);
 }
@@ -739,10 +745,12 @@ body {
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: min(420px, 55vh);
-  min-height: 120px;
+  /* Alto fijo (se adapta a la pantalla): al llenarse, se desplaza por dentro */
+  height: clamp(150px, 42vh, 340px);
   overflow-y: auto;
+  overscroll-behavior: contain;
   scrollbar-width: thin;
+  scrollbar-color: var(--wood-dark) transparent;
 }
 
 .history-row {
@@ -1328,24 +1336,50 @@ body {
 
 .history-nav {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 6px;
   margin-top: 8px;
 }
+/* Botones redondos con relieve, iguales a los del reproductor de música */
 .history-nav button {
-  flex: 1;
-  padding: 6px 0;
+  --btn: var(--ac-leaf);
+  --btn-shadow: #3f8e7d;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
   border: none;
-  border-radius: 10px;
-  background: var(--ink);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.35), transparent 55%), var(--btn);
   color: white;
-  font-family: "Baloo 2", sans-serif;
-  font-weight: 800;
-  font-size: 0.95rem;
   cursor: pointer;
+  box-shadow: 0 4px 0 var(--btn-shadow);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    filter 0.15s ease;
+}
+.history-nav button svg {
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.18));
+}
+.history-nav button:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 0 var(--btn-shadow);
+}
+.history-nav button:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--btn-shadow);
+}
+.history-nav button:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
 }
 .history-nav button:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
+  filter: saturate(0.5) opacity(0.6);
+  cursor: default;
 }
 
 /* ---------- Pantalla de dificultad ---------- */
@@ -1534,4 +1568,106 @@ body {
   width: 100%;
   padding: 11px 14px;
   font-size: 0.95rem;
+}
+/* ---------- Coronación: elegir la pieza ---------- */
+
+.promo-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.5);
+}
+.promo-card {
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 22px;
+  background: var(--cream-chip);
+  border: 3px solid var(--wood-dark);
+  color: var(--ink);
+  text-align: center;
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.3);
+}
+.promo-card h2 {
+  margin: 0;
+  font-family: "Baloo 2", sans-serif;
+  font-size: 1.5rem;
+}
+.promo-card p {
+  margin: 0;
+  font-weight: 600;
+}
+.promo-options {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.promo-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 4px 8px;
+  border: 3px solid transparent;
+  border-radius: 16px;
+  background: white;
+  color: var(--ink);
+  font-family: "Quicksand", sans-serif;
+  cursor: pointer;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.15);
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+.promo-option img {
+  width: 100%;
+  max-width: 84px;
+  aspect-ratio: 1;
+  object-fit: contain;
+}
+.promo-option strong {
+  font-family: "Baloo 2", sans-serif;
+  font-size: 1.05rem;
+}
+.promo-option span {
+  font-size: 0.78rem;
+  font-weight: 700;
+  opacity: 0.75;
+}
+.promo-option:hover,
+.promo-option:focus-visible {
+  transform: translateY(-3px);
+  border-color: var(--ac-yellow);
+  background: #fff3c4;
+  outline: none;
+}
+.promo-cancel {
+  padding: 8px 22px;
+  border: none;
+  border-radius: 999px;
+  background: var(--wood-dark);
+  color: white;
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3);
+}
+@media (max-width: 480px) {
+  .promo-options {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ---------- Celular: lugar libre abajo para el reproductor minimizado ---------- */
+@media (max-width: 700px) {
+  .app {
+    padding-bottom: 96px;
+  }
 }

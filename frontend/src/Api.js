@@ -5,11 +5,15 @@ export async function getState() {
   return res.json();
 }
 
-export async function postMove(fromRow, fromCol, toRow, toCol) {
+// promotion (opcional): "QUEEN" | "ROOK" | "BISHOP" | "KNIGHT", la pieza a la que corona un peón.
+// Si no se manda, el backend corona a Dama.
+export async function postMove(fromRow, fromCol, toRow, toCol, promotion) {
   const res = await fetch(`${API_URL}/move`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fromRow, fromCol, toRow, toCol }),
+    body: JSON.stringify(
+      promotion ? { fromRow, fromCol, toRow, toCol, promotion } : { fromRow, fromCol, toRow, toCol }
+    ),
   });
   return res.json();
 }

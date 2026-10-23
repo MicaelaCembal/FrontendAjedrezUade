@@ -76,6 +76,8 @@ const PIECE_NAME = {
   QUEEN: "Dama",
   KING: "Rey",
 };
+// Al coronar, el peón puede convertirse en cualquier pieza menos Rey o Peón
+const PROMOTION_CHOICES = ["QUEEN", "ROOK", "BISHOP", "KNIGHT"];
 const PIECE_VALUE = { PAWN: 1, KNIGHT: 3, BISHOP: 3, ROOK: 5, QUEEN: 9, KING: 0 };
 const COLOR_NAME = { WHITE: "Rosa", BLACK: "Celeste" };
 
@@ -243,6 +245,7 @@ function App() {
   const [hintLoading, setHintLoading] = useState(false);
   const [review, setReview] = useState(null); // null = partida en vivo; si no { boards, moves, index }
   const [exportOpen, setExportOpen] = useState(false);
+  const [pendingPromotion, setPendingPromotion] = useState(null); // jugada de coronación esperando que se elija la pieza
   const [copied, setCopied] = useState(false);
 
   const busyRef = useRef(false); // true mientras se espera al backend: evita jugadas dobles por doble click
@@ -459,6 +462,16 @@ function App() {
     if (timeoutColor) playTimeoutSound(timeoutColor !== USER_COLOR);
   }, [timeoutColor]);
 
+  // Con el cuadro de coronación abierto, Escape lo cancela.
+  useEffect(() => {
+    if (!pendingPromotion) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") setPendingPromotion(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [pendingPromotion]);
+
   // Con el menú abierto, Escape lo cierra.
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -503,7 +516,7 @@ function App() {
   });
 
   useEffect(() => {
-    if (!started || menuOpen || exportOpen) return undefined;
+    if (!started || menuOpen || exportOpen || pendingPromotion) return undefined;
     const onKeyDown = (event) => {
       const go = goToPositionRef.current;
       const current = reviewIndexRef.current;
@@ -522,7 +535,7 @@ function App() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [started, menuOpen, exportOpen]);
+  }, [started, menuOpen, exportOpen, pendingPromotion]);
 
   async function handleHint() {
     if (!isUserTurn || busyRef.current || hintLoading) return;
@@ -585,7 +598,7 @@ function App() {
   }
 
   async function handleSquareClick(row, col) {
-    if (!board || busyRef.current || review) return;
+    if (!board || busyRef.current || review || pendingPromotion) return;
 
     // El jaque no termina la partida: todavía hay que poder responderlo.
     if (!isUserTurn) {
@@ -646,14 +659,41 @@ function App() {
     }
 
     const movedPieceType = selectedPiece.type;
+    const move = { fromRow: selected.row, fromCol: selected.col, toRow: row, toCol: col };
+
+    // Un peón que llega al final del tablero corona: antes de jugar se pregunta
+    // a qué pieza se convierte (Dama, Torre, Alfil o Caballo).
+    if (movedPieceType === "PAWN" && row === BOARD_SIZE - 1) {
+      setPendingPromotion(move);
+      return;
+    }
+
+    await submitMove(move, movedPieceType);
+  }
+
+  async function choosePromotion(type) {
+    const move = pendingPromotion;
+    if (!move) return;
+    setPendingPromotion(null);
+    await submitMove(move, "PAWN", type);
+  }
+
+  // Cancelar deja la partida como estaba, con el peón todavía seleccionado
+  function cancelPromotion() {
+    setPendingPromotion(null);
+  }
+
+  // Envía la jugada al backend y reproduce sonidos y animaciones del resultado.
+  // "promotion" solo se usa cuando la jugada es una coronación.
+  async function submitMove({ fromRow, fromCol, toRow, toCol }, movedPieceType, promotion) {
     const historyBefore = history.length;
-    const isCastling = movedPieceType === "KING" && Math.abs(col - selected.col) === 2;
+    const isCastling = movedPieceType === "KING" && Math.abs(toCol - fromCol) === 2;
     let response;
     busyRef.current = true;
     setHint(null);
     setThinking(true);
     try {
-      response = await postMove(selected.row, selected.col, row, col);
+      response = await postMove(fromRow, fromCol, toRow, toCol, promotion);
     } catch {
       setConnectionError(true);
       return;
@@ -1108,6 +1148,38 @@ function App() {
         </div>
       </div>
 
+      {pendingPromotion && (
+        <div className="promo-backdrop" onClick={cancelPromotion}>
+          <div
+            className="promo-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Elegí la pieza para coronar"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2>Coronación</h2>
+            <p>Tu peón llegó al final del tablero. Elegí en qué pieza se convierte.</p>
+            <div className="promo-options">
+              {PROMOTION_CHOICES.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  className="promo-option"
+                  onClick={() => choosePromotion(type)}
+                >
+                  <img src={PIECE_IMAGE[USER_COLOR][type]} alt="" draggable={false} />
+                  <strong>{PIECE_NAME[type]}</strong>
+                  <span>{PIECE_VALUE[type]} puntos</span>
+                </button>
+              ))}
+            </div>
+            <button type="button" className="promo-cancel" onClick={cancelPromotion}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
       {exportOpen && (
         <div className="export-backdrop" onClick={() => setExportOpen(false)}>
           <div
@@ -1225,21 +1297,52 @@ function MoveHistory({ history, position, onGo }) {
       </ol>
       <div className="history-nav" role="group" aria-label="Navegar el historial">
         <button type="button" onClick={() => onGo(0)} disabled={atStart} aria-label="Ir al inicio" title="Inicio (tecla Inicio)">
-          |&lt;
+          {NAV_ICON_FIRST}
         </button>
         <button type="button" onClick={() => onGo(position - 1)} disabled={atStart} aria-label="Jugada anterior" title="Anterior (flecha izquierda)">
-          &lt;
+          {NAV_ICON_PREV}
         </button>
         <button type="button" onClick={() => onGo(position + 1)} disabled={atEnd} aria-label="Jugada siguiente" title="Siguiente (flecha derecha)">
-          &gt;
+          {NAV_ICON_NEXT}
         </button>
         <button type="button" onClick={() => onGo(history.length)} disabled={atEnd} aria-label="Volver a la jugada actual" title="Actual (tecla Fin o Esc)">
-          &gt;|
+          {NAV_ICON_LAST}
         </button>
       </div>
     </aside>
   );
 }
+
+// Iconitos de los botones del historial (mismo estilo que el reproductor)
+function NavIcon({ children }) {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true" focusable="false">
+      {children}
+    </svg>
+  );
+}
+const NAV_ICON_FIRST = (
+  <NavIcon>
+    <rect x="4.5" y="5" width="3" height="14" rx="1.5" />
+    <path d="M19.5 6.6v10.8a1.2 1.2 0 0 1-1.85 1l-8.4-5.4a1.2 1.2 0 0 1 0-2l8.4-5.4a1.2 1.2 0 0 1 1.85 1z" />
+  </NavIcon>
+);
+const NAV_ICON_PREV = (
+  <NavIcon>
+    <path d="M17 6.6v10.8a1.2 1.2 0 0 1-1.85 1l-8.4-5.4a1.2 1.2 0 0 1 0-2l8.4-5.4A1.2 1.2 0 0 1 17 6.6z" />
+  </NavIcon>
+);
+const NAV_ICON_NEXT = (
+  <NavIcon>
+    <path d="M7 6.6v10.8a1.2 1.2 0 0 0 1.85 1l8.4-5.4a1.2 1.2 0 0 0 0-2l-8.4-5.4A1.2 1.2 0 0 0 7 6.6z" />
+  </NavIcon>
+);
+const NAV_ICON_LAST = (
+  <NavIcon>
+    <rect x="16.5" y="5" width="3" height="14" rx="1.5" />
+    <path d="M4.5 6.6v10.8a1.2 1.2 0 0 0 1.85 1l8.4-5.4a1.2 1.2 0 0 0 0-2l-8.4-5.4A1.2 1.2 0 0 0 4.5 6.6z" />
+  </NavIcon>
+);
 
 // Una pieza comida, dibujada con position:fixed (en coordenadas de pantalla,
 // no del tablero) para poder volar desde su casilla hasta la bandeja aunque

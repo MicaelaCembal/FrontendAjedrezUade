@@ -97,7 +97,7 @@ const PIECES = [
   {
     type: "PAWN",
     name: "Peón",
-    text: "Avanza de a una casilla (la primera vez puede ir de a dos). Come en diagonal, para adelante, y nunca vuelve para atrás. Si llega al otro extremo del tablero se convierte en Dama.",
+    text: "Avanza de a una casilla (la primera vez puede ir de a dos). Come en diagonal, para adelante, y nunca vuelve para atrás. Si llega al otro extremo del tablero corona: elegís si se convierte en Dama, Torre, Alfil o Caballo.",
   },
   {
     type: "ROOK",

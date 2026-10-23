@@ -26,7 +26,7 @@ Juego de ajedrez contra la computadora con estética de Animal Crossing. Proyect
 **Reglas de ajedrez**
 
 - Movimiento de todas las piezas con validación de jugadas legales (no se permite dejar al propio rey en jaque).
-- Enroque corto y largo, captura al paso y coronación automática a dama.
+- Enroque corto y largo, captura al paso y coronación con elección de pieza (Dama, Torre, Alfil o Caballo).
 - Detección de jaque, jaque mate y ahogado.
 - Tablas por repetición triple de posición, regla de los 50 movimientos y material insuficiente.
 - Deshacer: revierte una ronda completa (la jugada del jugador y la respuesta de la computadora). Se habilita una sola vez hasta que se realiza una nueva jugada.
@@ -35,6 +35,7 @@ Juego de ajedrez contra la computadora con estética de Animal Crossing. Proyect
 
 - Tres niveles de dificultad (Fácil, Medio y Difícil), elegibles antes de empezar la partida.
 - Pista: sugiere la mejor jugada disponible para el jugador.
+- La computadora y la pista siempre coronan a Dama.
 - Reloj de 10 minutos por jugador, con derrota por tiempo.
 
 **Interfaz**
@@ -153,7 +154,7 @@ El backend expone una API JSON en `http://localhost:8081/api` con CORS habilitad
 | Método | Ruta | Descripción |
 | --- | --- | --- |
 | `GET` | `/state` | Estado completo: tablero, turno, jugadas legales, capturas, historial, última jugada y dificultad |
-| `POST` | `/move` | Realiza una jugada. Cuerpo: `{"fromRow":1,"fromCol":4,"toRow":3,"toCol":4}`. La respuesta incluye la contestación de la computadora |
+| `POST` | `/move` | Realiza una jugada. Cuerpo: `{"fromRow":1,"fromCol":4,"toRow":3,"toCol":4}`; en una coronación se agrega `"promotion":"QUEEN" \| "ROOK" \| "BISHOP" \| "KNIGHT"` (por defecto, dama). La respuesta incluye la contestación de la computadora |
 | `POST` | `/reset` | Inicia una partida nueva. Cuerpo opcional: `{"difficulty":"EASY" \| "MEDIUM" \| "HARD"}` |
 | `POST` | `/undo` | Deshace la última ronda (jugada del jugador y respuesta de la computadora) |
 | `GET` | `/hint` | Devuelve la mejor jugada sugerida para el jugador |
@@ -196,11 +197,9 @@ Si falta alguno de estos archivos, el juego usa un sonido sintetizado equivalent
 
 **Integrantes del equipo**
 
-Cembal, Micaela
-Lopez, Agostina
-Keuyluian, Lucia
-Salama, Valentina
-Gryner, Agustina
+- _Nombre y apellido_
+- _Nombre y apellido_
+- _Nombre y apellido_
 
 **Materia:** Ingeniería de Software, UADE.
 

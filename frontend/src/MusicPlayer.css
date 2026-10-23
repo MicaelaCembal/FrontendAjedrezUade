@@ -18,7 +18,7 @@
   /* Abajo a la derecha: ahí queda libre al costado del panel de la partida.
      align-items: flex-end hace que la caja de discos (más ancha) crezca
      hacia la izquierda en vez de salirse de la pantalla. */
-  position: fixed;
+  position: absolute;
   right: 14px;
   bottom: 14px;
   z-index: 60;
