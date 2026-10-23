@@ -1561,8 +1561,31 @@ body {
   flex-wrap: wrap;
   justify-content: center;
 }
-.history-group .actions {
-  width: 180px;
+/* Columna de la derecha: los botones y el tocadiscos comparten el mismo
+   ancho, así quedan alineados borde con borde. */
+.history-group .side-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 212px;
+}
+.history-group .side-col .actions {
+  width: 100%;
+}
+@media (max-width: 700px) {
+  .history-group .side-col {
+    width: 100%;
+  }
+  .history-group .side-col .actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .history-group .side-col .actions button {
+    width: auto;
+    flex: 1 1 140px;
+  }
 }
 .history-group .actions button {
   width: 100%;
@@ -1662,12 +1685,5 @@ body {
 @media (max-width: 480px) {
   .promo-options {
     grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/* ---------- Celular: lugar libre abajo para el reproductor minimizado ---------- */
-@media (max-width: 700px) {
-  .app {
-    padding-bottom: 96px;
   }
 }

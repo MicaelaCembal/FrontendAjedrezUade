@@ -1131,6 +1131,7 @@ function App() {
             position={reviewIndexNow}
             onGo={goToPosition}
           />
+          <div className="side-col">
           <div className="actions">
             <button className="hint-btn" onClick={handleHint} disabled={!isUserTurn || hintLoading || thinking}>
               {hintLoading ? "Buscando..." : "Pista"}
@@ -1144,6 +1145,8 @@ function App() {
             <button className="reset-btn" onClick={handleReset}>
               Reiniciar partida
             </button>
+          </div>
+          <MusicPlayer docked />
           </div>
         </div>
       </div>
@@ -1209,8 +1212,6 @@ function App() {
           </div>
         </div>
       )}
-
-      <MusicPlayer />
 
       {ghosts.map((ghost) => (
         <CaptureGhost key={ghost.ghostId} ghost={ghost} onDone={() => removeGhost(ghost.ghostId)} />

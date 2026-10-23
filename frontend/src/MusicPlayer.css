@@ -733,3 +733,25 @@
     transition: none;
   }
 }
+/* ---------- Tocadiscos "acoplado" (debajo de los botones de la partida) ---------- */
+.tt-player.tt-docked {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  align-items: center;
+  width: 100%;
+  transform: none;
+}
+/* La caja de discos se abre hacia arriba, flotando sin empujar el resto */
+.tt-docked .tt-crate {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+}
+@media (max-width: 700px) {
+  .tt-docked .tt-crate {
+    right: auto;
+    left: 50%;
+    margin-left: calc(min(290px, 100vw - 28px) / -2);
+  }
+}

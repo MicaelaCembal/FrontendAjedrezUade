@@ -183,7 +183,9 @@ function VolumeSlider({ icon, label, value, onChange, onPointerUp }) {
   );
 }
 
-function MusicPlayer() {
+// docked: el tocadiscos va dentro del flujo de la página (debajo de los botones)
+// en vez de flotar en la esquina.
+function MusicPlayer({ docked = false }) {
   const music = useSyncExternalStore(subscribe, getSnapshot);
   const [cratesOpen, setCratesOpen] = useState(false);
   const [mini, setMini] = useState(loadMini);
@@ -268,7 +270,7 @@ function MusicPlayer() {
   // ---------- Modo minimizado: solo un vinilo girando ----------
   if (mini) {
     return (
-      <div className="tt-player tt-player-mini">
+      <div className={`tt-player tt-player-mini${docked ? " tt-docked" : ""}`}>
         <button
           type="button"
           className="tt-mini-btn"
@@ -283,7 +285,7 @@ function MusicPlayer() {
   }
 
   return (
-    <div className="tt-player" aria-label="Tocadiscos">
+    <div className={`tt-player${docked ? " tt-docked" : ""}`} aria-label="Tocadiscos">
       {/* ---------- Caja de discos (se abre arriba del tocadiscos) ---------- */}
       {cratesOpen && (
         <div className="tt-crate">
