@@ -7,6 +7,20 @@
 // lista se arma sola con todo lo que haya ahí, ordenada por nombre de archivo,
 // y el título que se muestra sale del nombre ("01-mi-cancion.mp3" se ve como
 // "Mi cancion"). Para quitar una canción, borrá el archivo.
+//
+// Si querés un título con mayúsculas, puntos o tildes que no se puede escribir
+// bien en un nombre de archivo (por ej. "K.K. Bossa"), ponelo en TITLES: la
+// clave es el nombre del archivo y el valor, el título que se muestra. Los
+// archivos que no estén acá usan el título que sale del nombre.
+
+const TITLES = {
+  "01-tema-1.mp3": "Chill evening vibes",
+  "02-tema-2.mp3": "Floating in the clouds",
+  "03-tema-3.mp3": "Sunset serenade",
+  "04-tema-4.mp3": "Midnight stroll",
+  "05-tema-5.mp3": "Dizzy thoughts",
+  "06-tema-6.mp3": "Rainy day reflections",
+};
 
 const files = import.meta.glob("./assets/music/*.{mp3,ogg,wav,m4a}", {
   eager: true,
@@ -15,9 +29,9 @@ const files = import.meta.glob("./assets/music/*.{mp3,ogg,wav,m4a}", {
 });
 
 function titleFromPath(path) {
-  const name = path
-    .split("/")
-    .pop()
+  const fileName = path.split("/").pop();
+  if (TITLES[fileName]) return TITLES[fileName];
+  const name = fileName
     .replace(/\.[^.]+$/, "") // extensión
     .replace(/^\d+[\s._-]+/, "") // número de orden al principio
     .replace(/[-_]+/g, " ")

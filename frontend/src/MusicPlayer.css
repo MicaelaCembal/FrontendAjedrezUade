@@ -1,0 +1,735 @@
+/* ==========================================================================
+   Tocadiscos (MusicPlayer.jsx)
+   Valija rosa con la tapa abierta atrás, plato con vinilo, brazo plateado,
+   manija blanca y trabas doradas. Todo hecho con CSS, sin imágenes.
+   ========================================================================== */
+
+.tt-player {
+  /* Colores propios del tocadiscos */
+  --tt-case: #f3b3c1;
+  --tt-case-light: #f9d2db;
+  --tt-case-dark: #d9879b;
+  --tt-case-edge: #b9677c;
+  --tt-metal: #d9dde3;
+  --tt-metal-dark: #8e949c;
+  --tt-gold: #e8c46a;
+  --tt-gold-dark: #b58f35;
+
+  /* Abajo a la derecha: ahí queda libre al costado del panel de la partida.
+     align-items: flex-end hace que la caja de discos (más ancha) crezca
+     hacia la izquierda en vez de salirse de la pantalla. */
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  font-family: "Quicksand", sans-serif;
+  color: var(--ink);
+}
+
+/* ---------- La valija ---------- */
+
+.tt {
+  position: relative;
+  width: 212px;
+  height: 196px;
+  filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.22));
+}
+
+/* Tapa abierta hacia atrás: un poco inclinada para dar profundidad */
+.tt-lid {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 0;
+  height: 74px;
+  border-radius: 16px 16px 6px 6px;
+  background: var(--tt-case);
+  border: 3px solid var(--tt-case-edge);
+  transform: perspective(380px) rotateX(-14deg);
+  transform-origin: bottom center;
+}
+.tt-lid-inner {
+  position: absolute;
+  inset: 7px 9px 4px;
+  border-radius: 10px 10px 4px 4px;
+  background: linear-gradient(var(--tt-case-light), var(--tt-case));
+  box-shadow: inset 0 2px 4px rgba(150, 70, 90, 0.25);
+}
+/* Chapita dorada en el medio de la tapa */
+.tt-lid-inner::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 9px;
+  width: 22px;
+  height: 7px;
+  margin-left: -11px;
+  border-radius: 3px;
+  background: var(--tt-gold);
+  box-shadow: 0 1px 0 var(--tt-gold-dark);
+}
+
+/* Cuerpo: arriba la cubierta (donde va el plato), abajo el frente */
+.tt-base {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 56px;
+  height: 128px;
+  border-radius: 14px;
+  background: var(--tt-case-dark);
+  border: 3px solid var(--tt-case-edge);
+}
+
+.tt-deck {
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  top: 4px;
+  height: 94px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, var(--tt-case-light) 0%, var(--tt-case) 100%);
+  box-shadow: inset 0 -2px 0 rgba(150, 70, 90, 0.25);
+}
+
+.tt-front {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 26px;
+  background: linear-gradient(var(--tt-case), var(--tt-case-dark));
+  border-top: 2px solid var(--tt-case-edge);
+}
+.tt-latch {
+  position: absolute;
+  top: 6px;
+  width: 16px;
+  height: 11px;
+  border-radius: 3px;
+  background: linear-gradient(var(--tt-gold), var(--tt-gold-dark));
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+}
+.tt-latch.left {
+  left: 22px;
+}
+.tt-latch.right {
+  right: 22px;
+}
+
+/* Manija blanca colgando del frente */
+.tt-handle {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 58px;
+  height: 20px;
+  margin-left: -29px;
+  border: 5px solid #fbf7f2;
+  border-top: none;
+  border-radius: 0 0 14px 14px;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
+}
+
+/* ---------- Plato ---------- */
+
+/* El plato es un botón (tocarlo pausa / reanuda). Se aplasta un poco en
+   vertical con scaleY para que parezca visto desde arriba en diagonal. */
+.tt-platter {
+  position: absolute;
+  left: 12px;
+  top: -14px;
+  width: 124px;
+  height: 124px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: radial-gradient(circle, #4a4a4f 0 60%, #2c2c30 61% 100%);
+  box-shadow: 0 3px 0 #1d1d20;
+  transform: scaleY(0.66);
+  cursor: pointer;
+}
+.tt-platter:disabled {
+  cursor: default;
+}
+.tt-platter:focus-visible {
+  outline: 3px solid var(--ac-yellow);
+  outline-offset: 2px;
+}
+
+/* El hueco donde está el disco. Las animaciones de cambio van acá; el giro va
+   en el vinilo de adentro, así no se pisan las dos transformaciones. */
+.tt-record-slot {
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+}
+.tt-record-slot.phase-out {
+  animation: tt-record-out 420ms ease-in forwards;
+}
+.tt-record-slot.phase-in {
+  animation: tt-record-in 480ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+/* Sale: se levanta y se va hacia arriba (hacia la caja de discos) */
+@keyframes tt-record-out {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  35% {
+    transform: translate(0, -14px) scale(1.06);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-30px, -170px) scale(0.85) rotate(-25deg);
+    opacity: 0;
+  }
+}
+/* Entra: baja desde arriba y rebota un poquito al apoyarse */
+@keyframes tt-record-in {
+  0% {
+    transform: translate(30px, -170px) scale(0.85) rotate(25deg);
+    opacity: 0;
+  }
+  70% {
+    transform: translate(0, -10px) scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Brillito fijo arriba del disco: como no gira, el vinilo parece real */
+.tt-shine {
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(
+    from 20deg,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.16) 25deg,
+    transparent 55deg,
+    transparent 180deg,
+    rgba(255, 255, 255, 0.12) 205deg,
+    transparent 235deg
+  );
+}
+
+/* ---------- Vinilo (plato, fundas y modo mini) ---------- */
+
+.tt-vinyl {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  /* Los surcos son anillos finitos que se repiten */
+  background:
+    repeating-radial-gradient(circle, #1b1b1e 0 2px, #2a2a2f 2px 3px),
+    #1b1b1e;
+  box-shadow: inset 0 0 0 2px #111;
+}
+.tt-vinyl-label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 36%;
+  height: 36%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--label);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+/* Agujerito del centro */
+.tt-vinyl-label::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14%;
+  height: 14%;
+  min-width: 3px;
+  min-height: 3px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #eee;
+}
+.tt-vinyl-number {
+  margin-top: 6%;
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 800;
+  font-size: 0.62rem;
+  line-height: 1;
+  color: white;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* 33 rpm = una vuelta cada 1,8 s. Al pausar se congela donde está */
+.tt-vinyl.spinning {
+  animation: tt-spin 1.8s linear infinite;
+}
+@keyframes tt-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- Brazo ---------- */
+
+/* Gira desde el pivote (arriba a la derecha). En reposo queda al costado del
+   plato; cuando suena se mueve hasta apoyar la púa sobre el disco. */
+.tt-arm {
+  position: absolute;
+  right: 26px;
+  top: 6px;
+  width: 16px;
+  height: 84px;
+  transform-origin: 8px 8px;
+  transform: rotate(4deg);
+  transition: transform 0.45s ease;
+  pointer-events: none;
+}
+.tt-arm.down {
+  transform: rotate(31deg);
+}
+.tt-arm-pivot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff, var(--tt-metal) 45%, var(--tt-metal-dark));
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+}
+.tt-arm-rod {
+  position: absolute;
+  left: 6px;
+  top: 8px;
+  width: 4px;
+  height: 66px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #fff, var(--tt-metal-dark));
+  box-shadow: 1px 2px 0 rgba(0, 0, 0, 0.2);
+}
+.tt-arm-head {
+  position: absolute;
+  left: 2px;
+  top: 70px;
+  width: 11px;
+  height: 14px;
+  border-radius: 3px;
+  background: linear-gradient(var(--tt-metal), var(--tt-metal-dark));
+  box-shadow: 1px 2px 0 rgba(0, 0, 0, 0.25);
+}
+
+/* Perillita de volumen decorativa abajo a la derecha */
+.tt-knob {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff, var(--tt-metal) 50%, var(--tt-metal-dark));
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* ---------- Cartelito con canción, controles y volumen ---------- */
+
+.tt-plaque {
+  width: 212px;
+  padding: 9px 11px 11px;
+  border-radius: 18px;
+  background: var(--cream-chip);
+  border: 3px solid var(--wood-dark);
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.25);
+}
+
+/* Arriba: canción a la izquierda, "caja de discos" y "achicar" a la derecha */
+.tt-plaque-top {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 9px;
+}
+.tt-now {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  padding-left: 2px;
+}
+.tt-now-label {
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--moss-dark);
+  white-space: nowrap;
+}
+.tt-now-title {
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 700;
+  font-size: 0.92rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Botoncitos chicos de arriba (caja de discos / achicar) */
+.tt-mini-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 2px solid rgba(140, 90, 43, 0.35);
+  border-radius: 50%;
+  background: #fffaf0;
+  color: var(--wood-dark);
+  cursor: pointer;
+  box-shadow: 0 2px 0 rgba(140, 90, 43, 0.3);
+  transition: transform 0.12s ease, background 0.15s ease;
+}
+.tt-mini-icon:hover {
+  transform: translateY(-1px);
+  background: white;
+}
+.tt-mini-icon.active {
+  background: var(--candy-pink);
+  border-color: var(--candy-pink);
+  color: white;
+}
+
+/* Fila de controles: anterior, play/pausa, siguiente y silenciar.
+   Botones redondos "de goma", con una sombrita abajo del mismo color pero
+   más oscuro, que se hunden al apretarlos (como los del NookPhone). */
+.tt-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.tt-btn {
+  --btn: var(--ac-leaf);
+  --btn-shadow: #3f8e7d;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.35), transparent 55%), var(--btn);
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 4px 0 var(--btn-shadow);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    filter 0.15s ease;
+}
+.tt-btn svg {
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.18));
+}
+.tt-btn:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 0 var(--btn-shadow);
+}
+.tt-btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--btn-shadow);
+}
+.tt-btn:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+.tt-btn:disabled {
+  filter: saturate(0.5) opacity(0.6);
+  cursor: default;
+}
+
+/* Play / pausa: más grande y amarillo, es el protagonista */
+.tt-btn.tt-play {
+  --btn: var(--ac-yellow);
+  --btn-shadow: #c4930f;
+  width: 50px;
+  height: 50px;
+  color: var(--ink);
+}
+.tt-btn.tt-play svg {
+  filter: none;
+}
+
+/* Silenciar: madera cuando hay sonido, rosa cuando está muteado */
+.tt-btn.tt-mute {
+  --btn: var(--wood);
+  --btn-shadow: var(--wood-dark);
+}
+.tt-btn.tt-mute.muted {
+  --btn: var(--candy-pink);
+  --btn-shadow: #b9496b;
+}
+
+/* ---------- Barras de volumen ---------- */
+
+.tt-volumes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tt-volume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.tt-volume-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(120, 185, 74, 0.2);
+  color: var(--moss-dark);
+}
+
+/* La barra en sí. Se le saca el estilo del navegador (appearance: none) y se
+   dibuja de nuevo: la parte llena (verde) llega hasta --fill y el resto es
+   madera clarita. */
+.tt-volume input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  height: 10px;
+  margin: 0;
+  border-radius: 999px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: linear-gradient(
+    to right,
+    var(--moss) 0 var(--fill, 50%),
+    #ead9b4 var(--fill, 50%) 100%
+  );
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+/* La bolita que se arrastra: Chrome/Edge/Safari... */
+.tt-volume input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  border: 3px solid var(--moss-dark);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+  transition: transform 0.12s ease;
+}
+/* ...y Firefox (hay que repetirlo, no aceptan la misma regla) */
+.tt-volume input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: white;
+  border: 3px solid var(--moss-dark);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+}
+.tt-volume input[type="range"]:hover::-webkit-slider-thumb {
+  transform: scale(1.15);
+}
+.tt-volume input[type="range"]:focus-visible {
+  outline: 3px solid var(--ac-yellow);
+  outline-offset: 3px;
+}
+
+/* Texto solo para lectores de pantalla (el ícono ya lo dice a la vista) */
+.tt-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- Caja de discos ---------- */
+
+.tt-crate {
+  width: min(290px, calc(100vw - 28px));
+  padding: 12px 14px 14px;
+  border-radius: 20px;
+  background: var(--cream-chip);
+  border: 3px solid var(--wood-dark);
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.25);
+  animation: tt-crate-open 0.2s ease-out;
+}
+@keyframes tt-crate-open {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+.tt-crate-title {
+  margin: 0 0 8px;
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 800;
+  font-size: 1rem;
+}
+.tt-sleeves {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: grid;
+  /* minmax(0, 1fr) = columnas iguales que NO se estiran con títulos largos.
+     Con "1fr" solo, cada columna se agranda hasta que entre su contenido, y
+     un título largo empujaba todo fuera de la caja. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 8px;
+}
+.tt-sleeves li {
+  min-width: 0;
+}
+
+.tt-sleeve {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.tt-sleeve:disabled {
+  cursor: default;
+}
+
+/* La funda: un cuadrado de cartón del color del disco, con el vinilo
+   asomándose por el costado derecho (como un disco guardado a medias).
+   Al pasar el mouse, el disco sale un poco más y gira. */
+.tt-sleeve-cover {
+  position: relative;
+  display: block;
+  width: 70px; /* 52 de funda + 18 de disco asomado */
+  height: 52px;
+}
+.tt-sleeve-vinyl {
+  position: absolute;
+  left: 22px;
+  top: 3px;
+  width: 46px;
+  height: 46px;
+  transition: transform 0.25s ease;
+}
+.tt-sleeve:hover:not(:disabled) .tt-sleeve-vinyl,
+.tt-sleeve:focus-visible .tt-sleeve-vinyl {
+  transform: translateX(8px) rotate(90deg);
+}
+/* La funda va adelante del disco (se dibuja después en el HTML) */
+.tt-sleeve-art {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 6px;
+  background:
+    /* circulito blanco de "ilustración" de la tapa */
+    radial-gradient(circle at 32% 34%, rgba(255, 255, 255, 0.55) 0 7px, transparent 8px),
+    /* franja clarita abajo, como el lomo impreso */
+    linear-gradient(transparent 70%, rgba(255, 255, 255, 0.25) 70% 82%, transparent 82%),
+    linear-gradient(135deg, var(--label), color-mix(in srgb, var(--label) 72%, #000));
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  box-shadow:
+    2px 0 0 rgba(0, 0, 0, 0.12),
+    0 3px 0 rgba(0, 0, 0, 0.2);
+}
+/* Funda vacía (su disco está en el plato): se ve más apagada */
+.tt-sleeve.empty .tt-sleeve-art {
+  opacity: 0.45;
+  border-style: dashed;
+}
+.tt-sleeve:focus-visible .tt-sleeve-art {
+  outline: 3px solid var(--ac-yellow);
+  outline-offset: 2px;
+}
+/* Títulos de hasta 2 renglones; si son más largos se cortan con "..." */
+.tt-sleeve-title {
+  max-width: 100%;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.tt-sleeve.empty .tt-sleeve-title {
+  color: var(--moss-dark);
+}
+
+/* ---------- Modo minimizado ---------- */
+
+.tt-mini-btn {
+  width: 62px;
+  height: 62px;
+  padding: 4px;
+  border-radius: 50%;
+  border: 3px solid var(--tt-case-edge);
+  background: var(--tt-case);
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+.tt-mini-btn:hover {
+  transform: translateY(-1px);
+}
+
+/* ---------- Pantallas chicas y movimiento reducido ---------- */
+
+/* En pantallas más angostas se achica un poco desde la esquina de abajo a la
+   derecha, para que no se meta arriba del panel de la partida. */
+@media (max-width: 1366px) {
+  .tt-player:not(.tt-player-mini) {
+    transform: scale(0.88);
+    transform-origin: bottom right;
+  }
+}
+@media (max-width: 640px) {
+  .tt-player:not(.tt-player-mini) {
+    transform: scale(0.75);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tt-vinyl.spinning,
+  .tt-record-slot.phase-out,
+  .tt-record-slot.phase-in,
+  .tt-crate {
+    animation: none;
+  }
+  .tt-arm {
+    transition: none;
+  }
+}
