@@ -383,11 +383,13 @@ function App() {
     preloadSamples();
   }, []);
 
+  const clockTurn = thinking ? "BLACK" : turn;
+
   useEffect(() => {
     if (!board || !started || gameOver || connectionError) return undefined;
 
     const interval = setInterval(() => {
-      if (turn === "WHITE") {
+      if (clockTurn === "WHITE") {
         setWhiteTime((current) => {
           if (current <= 1) {
             setTimeoutColor("WHITE");
@@ -407,7 +409,7 @@ function App() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [board, started, turn, gameOver, connectionError]);
+  }, [board, started, clockTurn, gameOver, connectionError]);
 
   useEffect(() => {
     if (timeoutColor) playTimeoutSound(timeoutColor !== USER_COLOR);
@@ -980,7 +982,7 @@ function App() {
 
           <div className="players">
             <div
-              className={`player-card cyan ${turn === "BLACK" && !gameOver ? "active" : ""} ${
+              className={`player-card cyan ${clockTurn === "BLACK" && !gameOver ? "active" : ""} ${
                 blackTime <= 30 ? "low" : ""
               }`}
             >
@@ -992,7 +994,7 @@ function App() {
               </div>
             </div>
             <div
-              className={`player-card pink ${turn === "WHITE" && !gameOver ? "active" : ""} ${
+              className={`player-card pink ${clockTurn === "WHITE" && !gameOver ? "active" : ""} ${
                 whiteTime <= 30 ? "low" : ""
               }`}
             >
