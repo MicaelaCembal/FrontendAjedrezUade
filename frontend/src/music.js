@@ -1,17 +1,3 @@
-// Reproductor de música de fondo. Vive fuera de React (un único <audio> para
-// toda la app) para que no se corte ni se reinicie al pasar de la pantalla de
-// dificultad a la partida. El componente MusicPlayer solo lo controla.
-//
-// Para sumar tus propias canciones: copiá los archivos de audio (.mp3, .ogg,
-// .wav o .m4a) en la carpeta src/assets/music/. No hay que tocar código: la
-// lista se arma sola con todo lo que haya ahí, ordenada por nombre de archivo,
-// y el título que se muestra sale del nombre ("01-mi-cancion.mp3" se ve como
-// "Mi cancion"). Para quitar una canción, borrá el archivo.
-//
-// Si querés un título con mayúsculas, puntos o tildes que no se puede escribir
-// bien en un nombre de archivo (por ej. "K.K. Bossa"), ponelo en TITLES: la
-// clave es el nombre del archivo y el valor, el título que se muestra. Los
-// archivos que no estén acá usan el título que sale del nombre.
 
 const TITLES = {
   "01-tema-1.mp3": "Chill evening vibes",
@@ -138,8 +124,6 @@ export function togglePlay() {
   }
 }
 
-// Se llama desde un click real (empezar partida): arranca la música salvo que
-// la persona la haya pausado a propósito la última vez.
 export function startIfWanted() {
   if (TRACKS.length > 0 && state.wantsMusic && !state.muted) tryPlay();
 }

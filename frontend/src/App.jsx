@@ -270,10 +270,6 @@ function App() {
       .map((move) => ({ row: move.toRow, col: move.toCol }));
   }
 
-  // Aplica un estado nuevo del backend tal cual, sin animar nada. Se usa al
-  // cargar la partida por primera vez, al reiniciar y al deshacer: en
-  // ninguno de esos casos hay una "jugada" real que animar, así que no tiene
-  // sentido hacer volar piezas a la bandeja ni mostrar el chip de jaque.
   function applyStateInstant(state) {
     setBoard(state.board);
     setTurn(state.turn);
@@ -294,13 +290,7 @@ function App() {
     prevPiecesRef.current = flattenBoard(state.board);
   }
 
-  // Aplica un estado nuevo que viene de una jugada real (tuya o de la IA):
-  // compara contra el tablero anterior para detectar capturas (piezas que
-  // desaparecieron) y coronaciones (mismo id, mismo lugar, pero cambió de
-  // tipo), y dispara las animaciones correspondientes.
-  // Devuelve { capturedCount, promoted } para que quien llamó pueda decidir
-  // qué sonido tiene más prioridad (esto cubre tanto la jugada del usuario
-  // como la respuesta de la IA, que llegan juntas en el mismo estado nuevo).
+
   function applyStateAnimated(state) {
     const prevPieces = prevPiecesRef.current;
     const nextPieces = flattenBoard(state.board);
@@ -312,8 +302,6 @@ function App() {
     for (const [id, before] of prevPieces) {
       const after = nextPieces.get(id);
       if (!after) {
-        // Ya no está en el tablero: la capturaron. Si la medida del tablero
-        // y de la bandeja están disponibles, arma el "vuelo" hacia ahí.
         const flight = buildCaptureGhost(id, before);
         if (flight) newGhosts.push(flight);
         continue;
@@ -350,10 +338,7 @@ function App() {
     return { capturedCount: newGhosts.length, promoted };
   }
 
-  // Mide dónde estaba la pieza capturada (en la cuadrícula real del
-  // tablero) y hacia dónde tiene que volar (la bandeja de su color), y arma
-  // el objeto "fantasma" que se va a dibujar con position:fixed y animar
-  // con una transición de top/left/opacity/scale.
+
   function buildCaptureGhost(id, piece) {
     const boardEl = boardElRef.current;
     if (!boardEl) return null;
@@ -364,9 +349,6 @@ function App() {
     const startLeft = boardRect.left + piece.col * squareSize;
     const startTop = boardRect.top + screenRow * squareSize;
 
-    // La pieza capturada la come quien tenía el turno en ese momento: si la
-    // pieza comida es BLANCA, la comió Negras (va a la bandeja de Negras),
-    // y viceversa.
     const trayEl = piece.color === "WHITE" ? trayBlackRef.current : trayWhiteRef.current;
     const trayRect = trayEl ? trayEl.getBoundingClientRect() : null;
     const endLeft = trayRect ? trayRect.left + trayRect.width / 2 - squareSize / 2 : startLeft;
@@ -401,10 +383,6 @@ function App() {
     preloadSamples();
   }, []);
 
-  // Reloj de ajedrez: cada segundo le resta uno al tiempo de quien tiene el
-  // turno. Se frena solo (sin crear el intervalo) si la partida ya terminó,
-  // si no hay conexión con el backend, o si a alguien ya se le acabó el
-  // tiempo. Al llegar a 0 marca el timeout y no sigue descontando de más.
   useEffect(() => {
     if (!board || !started || gameOver || connectionError) return undefined;
 
@@ -435,7 +413,6 @@ function App() {
     if (timeoutColor) playTimeoutSound(timeoutColor !== USER_COLOR);
   }, [timeoutColor]);
 
-  // Con el cuadro de coronación abierto, Escape lo cancela.
   useEffect(() => {
     if (!pendingPromotion) return undefined;
     const onKeyDown = (event) => {
@@ -445,7 +422,6 @@ function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [pendingPromotion]);
 
-  // Con el menú abierto, Escape lo cierra.
   useEffect(() => {
     if (!menuOpen) return undefined;
     const onKeyDown = (event) => {
@@ -455,8 +431,6 @@ function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [menuOpen]);
 
-  // Repaso del historial: se pide al backend todas las posiciones de la partida
-  // y se navega entre ellas sin tocar la partida real.
   async function goToPosition(index) {
     if (!started || busyRef.current) return;
     const total = history.length;
@@ -562,8 +536,6 @@ function App() {
 
   function triggerCheckChip(who) {
     setCheckChip(null);
-    // Se saca y se vuelve a poner en el próximo tick para que, si ya estaba
-    // mostrando el chip, la animación de "pop" se vea de nuevo.
     requestAnimationFrame(() => {
       setCheckChip(who);
       setTimeout(() => setCheckChip(null), 1600);
@@ -573,14 +545,12 @@ function App() {
   async function handleSquareClick(row, col) {
     if (!board || busyRef.current || review || pendingPromotion) return;
 
-    // El jaque no termina la partida: todavía hay que poder responderlo.
     if (!isUserTurn) {
       return;
     }
 
     const clickedPiece = board[row][col];
 
-    // Nada seleccionado todavía: solo se puede seleccionar una pieza propia del usuario
     if (!selected) {
       if (isUserPiece(clickedPiece)) {
         const legalMoves = stateMovesForPiece(row, col);
@@ -599,13 +569,11 @@ function App() {
       return;
     }
 
-    // Click sobre la misma pieza: deseleccionar
     if (selected.row === row && selected.col === col) {
       setSelected(null);
       return;
     }
 
-    // Permitir cambiar la selección directamente a otra pieza propia del usuario
     if (isUserPiece(clickedPiece)) {
       const legalMoves = stateMovesForPiece(row, col);
       if (legalMoves.length === 0) {
@@ -623,7 +591,6 @@ function App() {
       return;
     }
 
-    // Click en otra casilla (vacía o pieza rival para capturar): intentar mover
     if (!isPossibleMove(row, col)) {
       setSelected(null);
       setMessage("Movimiento inválido");
@@ -634,8 +601,6 @@ function App() {
     const movedPieceType = selectedPiece.type;
     const move = { fromRow: selected.row, fromCol: selected.col, toRow: row, toCol: col };
 
-    // Un peón que llega al final del tablero corona: antes de jugar se pregunta
-    // a qué pieza se convierte (Dama, Torre, Alfil o Caballo).
     if (movedPieceType === "PAWN" && row === BOARD_SIZE - 1) {
       setPendingPromotion(move);
       return;
@@ -651,13 +616,10 @@ function App() {
     await submitMove(move, "PAWN", type);
   }
 
-  // Cancelar deja la partida como estaba, con el peón todavía seleccionado
   function cancelPromotion() {
     setPendingPromotion(null);
   }
 
-  // Envía la jugada al backend y reproduce sonidos y animaciones del resultado.
-  // "promotion" solo se usa cuando la jugada es una coronación.
   async function submitMove({ fromRow, fromCol, toRow, toCol }, movedPieceType, promotion) {
     const historyBefore = history.length;
     const isCastling = movedPieceType === "KING" && Math.abs(toCol - fromCol) === 2;
@@ -688,10 +650,6 @@ function App() {
 
     setMessage("");
 
-    // Prioridad de sonidos: primero lo que termina la partida, después jaque,
-    // después coronación, después captura, y si no pasó nada de eso, el
-    // sonido normal de la pieza que se movió. "capturedCount" cuenta tanto
-    // las capturas propias como las que hizo la IA en su respuesta.
     if (response.state.gameState === "CHECKMATE") {
       const userWon = response.state.turn !== USER_COLOR;
       playCheckmateSound(userWon);
@@ -710,15 +668,12 @@ function App() {
     } else {
       if (isCastling) playCastleSound();
       else playMoveSound(movedPieceType);
-      // Si Celeste respondió con una jugada común, suena aparte (distinto al
-      // tuyo) un momento después para distinguir de quién fue cada una.
       if ((response.state.history?.length ?? 0) >= historyBefore + 2) {
         setTimeout(playAiMoveSound, 450);
       }
     }
   }
 
-  // "Reiniciar" y "Jugar de nuevo" vuelven a la pantalla de dificultad.
   function handleReset() {
     setChosenDifficulty(difficulty);
     setExportOpen(false);
@@ -745,8 +700,6 @@ function App() {
     setTimeoutColor(null);
   }
 
-  // Cada click vuelve exactamente una ronda: tu última jugada y la respuesta
-  // de Celeste (el backend se encarga de deshacer las dos juntas).
   async function handleUndo() {
     if (!canUndo || busyRef.current || review) return;
     let state;
@@ -761,14 +714,9 @@ function App() {
     setMessage("");
     setGhosts([]);
     setCheckChip(null);
-    // El tiempo ya gastado no se devuelve (como en un reloj real), pero si se
-    // había acabado el tiempo de alguien, deshacer permite seguir jugando.
     setTimeoutColor(null);
   }
 
-  // Texto de fin de partida, en vez de mostrar el nombre crudo del estado
-  // (CHECKMATE / DRAW). Si hay jaque mate, quien queda en jaque es quien
-  // pierde, así que el otro color es el ganador.
   function gameOverInfo() {
     if (timeoutColor) {
       const userWon = timeoutColor !== USER_COLOR;
@@ -1193,7 +1141,6 @@ function App() {
   );
 }
 
-// Una pieza comida dentro de la bandeja, con su valor en puntos al lado.
 function CapturedPiece({ piece }) {
   return (
     <span className="captured-item" title={pieceTooltip(piece)}>
@@ -1207,11 +1154,6 @@ function CapturedPiece({ piece }) {
   );
 }
 
-// Historial de movimientos en notación algebraica: letra de la pieza (R rey,
-// D dama, T torre, A alfil, C caballo; el peón no lleva letra), columna (a-h)
-// y fila (1-8) de destino. "x" es captura, "+" jaque, "#" jaque mate, "O-O" y
-// "O-O-O" enroque corto y largo, "=D" coronación. Una fila por jugada completa:
-// primero Rosa, después Celeste.
 function MoveHistory({ history, position, onGo }) {
   const listRef = useRef(null);
 
@@ -1231,7 +1173,6 @@ function MoveHistory({ history, position, onGo }) {
   for (let i = 0; i < history.length; i += 2) {
     rows.push({ number: i / 2 + 1, pink: history[i], cyan: history[i + 1], index: i });
   }
-  // Índice (en history) de la jugada que se está mirando: la posición N es la que queda tras la jugada N
   const currentIndex = position - 1;
   const atStart = position <= 0;
   const atEnd = position >= history.length;
@@ -1287,7 +1228,6 @@ function MoveHistory({ history, position, onGo }) {
   );
 }
 
-// Iconitos de los botones del historial (mismo estilo que el reproductor)
 function NavIcon({ children }) {
   return (
     <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true" focusable="false">
@@ -1318,11 +1258,6 @@ const NAV_ICON_LAST = (
   </NavIcon>
 );
 
-// Una pieza comida, dibujada con position:fixed (en coordenadas de pantalla,
-// no del tablero) para poder volar desde su casilla hasta la bandeja aunque
-// estén en contenedores distintos. Arranca parada en el punto de partida sin
-// transición, y en el siguiente frame se le asigna el punto de llegada CON
-// transición, que es lo que dispara la animación.
 function CaptureGhost({ ghost, onDone }) {
   const [pos, setPos] = useState(ghost.start);
   const [faded, setFaded] = useState(false);

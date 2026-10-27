@@ -12,21 +12,8 @@ import {
 import { playSelectSound } from "./sound";
 import "./MusicPlayer.css";
 
-// Tocadiscos de valija rosa (como el del juego) abajo a la derecha.
-// Cada canción es un vinilo con su etiqueta de color. Cambiar de canción =
-// sacar el vinilo del plato y poner otro: primero se levanta el brazo, el disco
-// viejo sale volando hacia la caja de discos, entra el nuevo, baja el brazo y
-// recién ahí empieza a sonar.
-//
-// El audio sigue viviendo en music.js (un solo <audio> para toda la app); este
-// componente solo lo dibuja y lo controla.
-
-// Colores de las etiquetas, en orden. Si hay más canciones que colores, se
-// repiten (la canción 8 vuelve a ser rosa, etc.).
 const LABEL_COLORS = ["#b48be0", "#ec6f93", "#6ccbe8", "#f7c52b", "#5fb8a5", "#f28c4b", "#78b94a"];
 
-// Duración de cada mitad del cambio de disco. Tienen que coincidir con las
-// animaciones tt-record-out / tt-record-in de MusicPlayer.css.
 const OUT_MS = 420;
 const IN_MS = 480;
 
@@ -40,8 +27,6 @@ function wrapIndex(index) {
   return (index + TRACKS.length) % TRACKS.length;
 }
 
-// Por debajo de este ancho, el panel de la partida ocupa la esquina de abajo a
-// la derecha, así que el tocadiscos arranca achicado para no taparlo.
 const NARROW_SCREEN = 1200;
 
 function loadMini() {
@@ -63,8 +48,6 @@ function saveMini(value) {
   }
 }
 
-// El vinilo en sí: surcos, etiqueta de color con el número y el agujerito.
-// Se usa en el plato, en las fundas de la caja y en el modo minimizado.
 function Vinyl({ index, className = "" }) {
   return (
     <span className={`tt-vinyl ${className}`} style={{ "--label": labelColor(index) }} aria-hidden="true">
@@ -76,7 +59,6 @@ function Vinyl({ index, className = "" }) {
 }
 
 // ---------- Iconitos (SVG) ----------
-// Todos usan currentColor, así toman el color del botón donde están.
 function Icon({ children, size = 20 }) {
   return (
     <svg
@@ -183,16 +165,10 @@ function VolumeSlider({ icon, label, value, onChange, onPointerUp }) {
   );
 }
 
-// docked: el tocadiscos va dentro del flujo de la página (debajo de los botones)
-// en vez de flotar en la esquina.
 function MusicPlayer({ docked = false }) {
   const music = useSyncExternalStore(subscribe, getSnapshot);
   const [cratesOpen, setCratesOpen] = useState(false);
   const [mini, setMini] = useState(loadMini);
-
-  // shown = el disco que se VE en el plato. Normalmente es igual a
-  // music.index, pero durante el cambio de disco va un paso atrás: el viejo
-  // tiene que terminar de salir antes de que aparezca el nuevo.
   const [shown, setShown] = useState(music.index);
   // phase: "idle" (quieto) | "out" (sale el disco viejo) | "in" (entra el nuevo)
   const [phase, setPhase] = useState("idle");
@@ -203,19 +179,10 @@ function MusicPlayer({ docked = false }) {
     timers.current.push(id);
   }
 
-  // Al desmontar (por ej. al pasar de la pantalla de inicio a la partida) se
-  // cancelan los timers pendientes para no tocar un componente que ya no está.
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
-  // Si la canción cambió "sola" (terminó y pasó a la siguiente), el plato se
-  // entera acá y hace la misma animación de cambio de disco. La música ya
-  // está sonando, solo se pone al día el dibujo. Depende también de phase:
-  // si la canción cambió justo en medio de otra animación, se espera a que
-  // termine (phase vuelve a "idle") y ahí se pone al día.
   useEffect(() => {
     if (music.index === shown || phase !== "idle") return;
-    // Todo va dentro de timers (nada de setState directo en el efecto) para
-    // no provocar renders en cascada.
     const target = music.index;
     later(() => {
       setPhase("out");
@@ -234,9 +201,6 @@ function MusicPlayer({ docked = false }) {
   // El brazo solo apoya la púa si suena y no se está cambiando el disco.
   const needleDown = music.playing && !swapping;
 
-  // Cambio de disco pedido por la persona (funda, anterior o siguiente).
-  // A diferencia del cambio automático, acá la canción nueva arranca recién
-  // cuando el disco nuevo ya está en el plato.
   function changeRecord(target) {
     if (swapping) return;
     const next = wrapIndex(target);

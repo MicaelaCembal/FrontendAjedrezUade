@@ -1,8 +1,3 @@
-/* ==========================================================================
-   Tocadiscos (MusicPlayer.jsx)
-   Valija rosa con la tapa abierta atrás, plato con vinilo, brazo plateado,
-   manija blanca y trabas doradas. Todo hecho con CSS, sin imágenes.
-   ========================================================================== */
 
 .tt-player {
   /* Colores propios del tocadiscos */
@@ -15,9 +10,6 @@
   --tt-gold: #e8c46a;
   --tt-gold-dark: #b58f35;
 
-  /* Abajo a la derecha: ahí queda libre al costado del panel de la partida.
-     align-items: flex-end hace que la caja de discos (más ancha) crezca
-     hacia la izquierda en vez de salirse de la pantalla. */
   position: absolute;
   right: 14px;
   bottom: 14px;
@@ -30,7 +22,6 @@
   color: var(--ink);
 }
 
-/* ---------- La valija ---------- */
 
 .tt {
   position: relative;
@@ -39,7 +30,6 @@
   filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.22));
 }
 
-/* Tapa abierta hacia atrás: un poco inclinada para dar profundidad */
 .tt-lid {
   position: absolute;
   left: 12px;
@@ -59,7 +49,6 @@
   background: linear-gradient(var(--tt-case-light), var(--tt-case));
   box-shadow: inset 0 2px 4px rgba(150, 70, 90, 0.25);
 }
-/* Chapita dorada en el medio de la tapa */
 .tt-lid-inner::after {
   content: "";
   position: absolute;
@@ -73,7 +62,6 @@
   box-shadow: 0 1px 0 var(--tt-gold-dark);
 }
 
-/* Cuerpo: arriba la cubierta (donde va el plato), abajo el frente */
 .tt-base {
   position: absolute;
   left: 0;
@@ -137,8 +125,6 @@
 
 /* ---------- Plato ---------- */
 
-/* El plato es un botón (tocarlo pausa / reanuda). Se aplasta un poco en
-   vertical con scaleY para que parezca visto desde arriba en diagonal. */
 .tt-platter {
   position: absolute;
   left: 12px;
@@ -161,8 +147,6 @@
   outline-offset: 2px;
 }
 
-/* El hueco donde está el disco. Las animaciones de cambio van acá; el giro va
-   en el vinilo de adentro, así no se pisan las dos transformaciones. */
 .tt-record-slot {
   position: absolute;
   inset: 5px;
@@ -175,7 +159,6 @@
   animation: tt-record-in 480ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 
-/* Sale: se levanta y se va hacia arriba (hacia la caja de discos) */
 @keyframes tt-record-out {
   0% {
     transform: translate(0, 0) scale(1);
@@ -206,7 +189,7 @@
   }
 }
 
-/* Brillito fijo arriba del disco: como no gira, el vinilo parece real */
+/* Brillito fijo arriba del disco */
 .tt-shine {
   position: absolute;
   inset: 5px;
@@ -231,7 +214,6 @@
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  /* Los surcos son anillos finitos que se repiten */
   background:
     repeating-radial-gradient(circle, #1b1b1e 0 2px, #2a2a2f 2px 3px),
     #1b1b1e;
@@ -287,8 +269,6 @@
 
 /* ---------- Brazo ---------- */
 
-/* Gira desde el pivote (arriba a la derecha). En reposo queda al costado del
-   plato; cuando suena se mueve hasta apoyar la púa sobre el disco. */
 .tt-arm {
   position: absolute;
   right: 26px;
@@ -415,9 +395,6 @@
   color: white;
 }
 
-/* Fila de controles: anterior, play/pausa, siguiente y silenciar.
-   Botones redondos "de goma", con una sombrita abajo del mismo color pero
-   más oscuro, que se hunden al apretarlos (como los del NookPhone). */
 .tt-controls {
   display: flex;
   align-items: center;
@@ -511,9 +488,6 @@
   color: var(--moss-dark);
 }
 
-/* La barra en sí. Se le saca el estilo del navegador (appearance: none) y se
-   dibuja de nuevo: la parte llena (verde) llega hasta --fill y el resto es
-   madera clarita. */
 .tt-volume input[type="range"] {
   flex: 1;
   min-width: 0;
@@ -596,9 +570,6 @@
   margin: 0 0 8px;
   padding: 0;
   display: grid;
-  /* minmax(0, 1fr) = columnas iguales que NO se estiran con títulos largos.
-     Con "1fr" solo, cada columna se agranda hasta que entre su contenido, y
-     un título largo empujaba todo fuera de la caja. */
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px 8px;
 }
@@ -623,9 +594,6 @@
   cursor: default;
 }
 
-/* La funda: un cuadrado de cartón del color del disco, con el vinilo
-   asomándose por el costado derecho (como un disco guardado a medias).
-   Al pasar el mouse, el disco sale un poco más y gira. */
 .tt-sleeve-cover {
   position: relative;
   display: block;
@@ -708,8 +676,6 @@
 
 /* ---------- Pantallas chicas y movimiento reducido ---------- */
 
-/* En pantallas más angostas se achica un poco desde la esquina de abajo a la
-   derecha, para que no se meta arriba del panel de la partida. */
 @media (max-width: 1366px) {
   .tt-player:not(.tt-player-mini) {
     transform: scale(0.88);

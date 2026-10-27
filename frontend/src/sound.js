@@ -1,27 +1,4 @@
-// Efectos de sonido del juego, generados con la Web Audio API (sin archivos
-// que descargar). Todos son sonidos originales con onda suave y "burbujeante",
-// pensados para una isla tranquila: marimbas, campanitas, "bloops" y chillidos
-// de aldeano. Cada tipo de movimiento tiene varias variantes y se elige una al
-// azar, así que jugar no se vuelve repetitivo.
-//
-// Tipos de sonido: mover cada pieza (peón, caballo, alfil, torre, dama, rey),
-// enroque, captura, jaque, coronación, jaque mate (ganás / perdés), tablas,
-// tiempo agotado, seleccionar una pieza y movimiento inválido.
-
 import { getSfxVolume } from "./music";
-
-// ---------------------------------------------------------------------------
-// Sonidos de archivo (opcionales)
-// ---------------------------------------------------------------------------
-// Si existen estos archivos en public/sounds/, se usan en lugar de los sonidos
-// sintetizados de más abajo. Si falta alguno, el juego usa el sintetizado y no
-// pasa nada. Para cambiar un sonido alcanza con reemplazar el archivo.
-//   check    jaque y enroque
-//   move     cada movimiento normal del jugador
-//   ai       cada movimiento normal de la computadora
-//   select   elegir una pieza
-//   win      ganar la partida (jaque mate a favor o tiempo del rival agotado)
-//   lose     perder la partida
 const SAMPLE_FILES = {
   check: "/sounds/jaque-enroque.mp3",
   move: "/sounds/mover.mp3",
@@ -32,9 +9,6 @@ const SAMPLE_FILES = {
 };
 const sampleBuffers = {};
 let samplesRequested = false;
-
-// Se pide y decodifica todo al arrancar la app. Se decodifica con un contexto
-// "offline" para no necesitar un click del usuario todavía.
 export function preloadSamples() {
   if (samplesRequested || typeof window === "undefined") return;
   samplesRequested = true;
@@ -128,24 +102,20 @@ function tone({ freq, freqEnd = null, duration = 0.15, type = "sine", start = 0,
   osc.stop(t0 + duration + 0.03);
 }
 
-// Campanita: la nota más una octava arriba más suave, caída larga.
 function bell(freq, start = 0, gain = 0.14, duration = 0.5) {
   tone({ freq, duration, start, gain });
   tone({ freq: freq * 2, duration: duration * 0.6, start, gain: gain * 0.35 });
 }
 
-// Marimba: ataque seco con un armónico agudo que muere rápido.
 function marimba(freq, start = 0, gain = 0.2, duration = 0.26) {
   tone({ freq, duration, start, gain, attack: 0.004 });
   tone({ freq: freq * 4, duration: duration * 0.25, start, gain: gain * 0.3, attack: 0.002 });
 }
 
-// "Bloop" de burbuja: sube de tono rápido.
 function bloop(freq, start = 0, gain = 0.18, duration = 0.11) {
   tone({ freq: freq * 0.7, freqEnd: freq * 1.15, duration, start, gain, type: "sine" });
 }
 
-// Golpecito de madera: un ruido cortito filtrado.
 function knock(start = 0, gain = 0.2, freq = 700) {
   const ctx = getCtx();
   if (!ctx) return;
@@ -167,8 +137,6 @@ function knock(start = 0, gain = 0.2, freq = 700) {
   src.start(ctx.currentTime + start);
 }
 
-// Chillido de aldeano: sílabas muy cortas de tono aleatorio, con un leve
-// "vibrato" hacia arriba o abajo, como cuando hablan en el juego.
 function chirps(count, { base = 520, spread = 260, gap = 0.075, gain = 0.13, start = 0 } = {}) {
   for (let i = 0; i < count; i += 1) {
     const f = base + Math.random() * spread;
@@ -185,9 +153,7 @@ function chirps(count, { base = 520, spread = 260, gap = 0.075, gain = 0.13, sta
   }
 }
 
-// ---------------------------------------------------------------------------
 // Movimientos de cada pieza
-// ---------------------------------------------------------------------------
 
 const MOVE_SOUNDS = {
   // Peón: un "bloop" chiquito
@@ -378,7 +344,6 @@ export function playSelectSound() {
   });
 }
 
-// Movimiento no permitido: dos "bub" graves, como un aldeano que se confunde
 export function playInvalidSound() {
   safely(() => {
     tone({ freq: 220, freqEnd: 190, duration: 0.09, type: "triangle", gain: 0.16 });
@@ -386,8 +351,6 @@ export function playInvalidSound() {
   });
 }
 
-// Respuesta normal de la computadora (sin captura ni jaque): un sonido distinto
-// al del jugador para distinguir de quién fue la jugada.
 export function playAiMoveSound() {
   safely(() => {
     if (playSample("ai")) return;

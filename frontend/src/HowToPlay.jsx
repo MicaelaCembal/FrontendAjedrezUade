@@ -19,7 +19,6 @@ function miniPattern(type) {
   };
 
   if (type === "PAWN") {
-    // El peón se dibuja más abajo para que se vea que avanza "hacia arriba".
     const piece = [3, 2];
     add(2, 2);
     add(1, 2);
@@ -65,8 +64,7 @@ function miniPattern(type) {
   return { piece: center, moves, captures };
 }
 
-// Mini tablerito que muestra a dónde puede ir una pieza: puntos verdes =
-// puede moverse ahí, aro verde = puede comer ahí.
+
 function MiniMoves({ type, image }) {
   const { piece, moves, captures } = miniPattern(type);
   const cells = [];
