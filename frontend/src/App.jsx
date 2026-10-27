@@ -37,7 +37,6 @@ import queenCeleste from "./assets/pieces/celeste/queenLightBlue.png";
 import kingCeleste from "./assets/pieces/celeste/kingLightBlue.png";
 import pawnCeleste from "./assets/pieces/celeste/pawnLightBlue.png";
 
-// Personajes de Animal Crossing por tipo de pieza y color (WHITE = rosa, BLACK = celeste)
 const PIECE_IMAGE = {
   WHITE: {
     ROOK: rookPink,
@@ -57,17 +56,12 @@ const PIECE_IMAGE = {
   },
 };
 
-// Celeste (Negras) arriba, Rosa (Blancas) abajo: se dibuja la fila de pantalla
-// 7-row en vez de row directamente — la lógica de movimientos sigue usando
-// las filas reales que maneja el backend.
 function toScreenRow(row) {
   return 7 - row;
 }
 
 const BOARD_SIZE = 8;
 
-// Nombre en español y valor en puntos de cada pieza (el valor clásico del ajedrez).
-// El Rey no se puede comer, así que no tiene valor.
 const PIECE_NAME = {
   PAWN: "Peón",
   KNIGHT: "Caballo",
@@ -76,7 +70,6 @@ const PIECE_NAME = {
   QUEEN: "Dama",
   KING: "Rey",
 };
-// Al coronar, el peón puede convertirse en cualquier pieza menos Rey o Peón
 const PROMOTION_CHOICES = ["QUEEN", "ROOK", "BISHOP", "KNIGHT"];
 const PIECE_VALUE = { PAWN: 1, KNIGHT: 3, BISHOP: 3, ROOK: 5, QUEEN: 9, KING: 0 };
 const COLOR_NAME = { WHITE: "Rosa", BLACK: "Celeste" };
@@ -85,18 +78,12 @@ function totalPoints(pieces) {
   return pieces.reduce((sum, piece) => sum + (PIECE_VALUE[piece.type] ?? 0), 0);
 }
 
-// Texto del cartelito que aparece al pasar el mouse sobre una pieza
 function pieceTooltip(piece) {
   const points = PIECE_VALUE[piece.type];
   const worth = points > 0 ? `vale ${points} ${points === 1 ? "punto" : "puntos"}` : "no se puede comer";
   return `${PIECE_NAME[piece.type]} ${COLOR_NAME[piece.color]} · ${worth}`;
 }
 
-// Los 5 fondos entre los que se puede elegir, todos con el mismo esquema de
-// nombre (fondo1..fondo5) para que sea fácil agregar/sacar uno después. Los
-// dos ".webp" son fotos propias (subidas por la usuaria a mano); los tres
-// ".svg" son ilustraciones originales (no son arte de Nintendo ni de ningún
-// juego: un patrón de hojitas, una isla y un bosque, dibujados de cero).
 const BACKGROUNDS = [
   { id: "fondo1", label: "Bosque", file: "/backgrounds/fondo1.jpg", mode: "cover" },
   { id: "fondo2", label: "Isla", file: "/backgrounds/fondo2.svg", mode: "cover" },
@@ -117,10 +104,6 @@ function loadSavedBackgroundId() {
   return DEFAULT_BACKGROUND_ID;
 }
 
-// Convierte el tablero (matriz 8x8) en una lista plana de piezas vivas,
-// indexada por su id. Se usa tanto para dibujar la capa de piezas como para
-// comparar "tablero anterior" contra "tablero nuevo" y detectar capturas y
-// coronaciones.
 function flattenBoard(board) {
   const byId = new Map();
   for (let row = 0; row < BOARD_SIZE; row += 1) {
@@ -153,8 +136,6 @@ const DIFFICULTIES = [
 ];
 const DIFFICULTY_NAME = { EASY: "Fácil", MEDIUM: "Medio", HARD: "Difícil" };
 
-// El backend escribe las jugadas con letras en español (R rey, D dama, T torre,
-// A alfil, C caballo). El PGN estándar usa las inglesas (K, Q, R, B, N).
 const PGN_LETTER = { R: "K", D: "Q", T: "R", A: "B", C: "N" };
 function toPgnMove(move) {
   return move
@@ -191,9 +172,6 @@ function isUserPiece(piece) {
   return Boolean(piece && piece.color === USER_COLOR);
 }
 
-// Reloj de ajedrez: 10 minutos por lado, formato partida "rápida" estándar.
-// Es un reloj solo de frontend (el backend no sabe nada de esto), así que si
-// se refresca la página se reinicia; para esta app alcanza y sobra.
 const INITIAL_CLOCK_SECONDS = 10 * 60;
 
 function formatClock(totalSeconds) {
@@ -203,7 +181,6 @@ function formatClock(totalSeconds) {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-// Explicación de cada tipo de empate, tal como lo informa el backend
 const DRAW_REASON_TEXT = {
   STALEMATE: "Ahogado: nadie tiene movimientos legales, pero nadie está en jaque.",
   THREEFOLD_REPETITION: "La misma posición se repitió tres veces.",
@@ -264,10 +241,6 @@ function App() {
     }
   }, [backgroundId]);
 
-  // Estar en jaque no termina la partida: el jugador todavía debe poder
-  // mover para salir del jaque. Jaque mate, ahogado (tablas) y que a alguien
-  // se le acabe el tiempo del reloj sí la terminan, así que ahí se bloquea
-  // el tablero.
   const gameOver = gameState === "CHECKMATE" || gameState === "DRAW" || Boolean(timeoutColor);
   const isUserTurn = turn === USER_COLOR && !gameOver && !review;
   // En modo repaso se muestra una posición vieja y no se puede jugar.
