@@ -188,6 +188,28 @@ const DRAW_REASON_TEXT = {
   FIFTY_MOVE_RULE: "Pasaron 50 jugadas sin mover un peón ni comer ninguna pieza.",
 };
 
+function buildOptimisticBoard(board, { fromRow, fromCol, toRow, toCol }, promotion) {
+  const next = board.map((row) => [...row]);
+  const piece = next[fromRow][fromCol];
+  let captured = next[toRow][toCol];
+
+  if (piece.type === "PAWN" && fromCol !== toCol && !captured) {
+    captured = next[fromRow][toCol];
+    next[fromRow][toCol] = null;
+  }
+
+  if (piece.type === "KING" && Math.abs(toCol - fromCol) === 2) {
+    const rookFrom = toCol > fromCol ? BOARD_SIZE - 1 : 0;
+    const rookTo = toCol > fromCol ? toCol - 1 : toCol + 1;
+    next[fromRow][rookTo] = next[fromRow][rookFrom];
+    next[fromRow][rookFrom] = null;
+  }
+
+  next[toRow][toCol] = promotion ? { ...piece, type: promotion } : piece;
+  next[fromRow][fromCol] = null;
+  return { board: next, captured };
+}
+
 let ghostIdCounter = 0;
 
 function App() {
@@ -622,9 +644,33 @@ function App() {
     setPendingPromotion(null);
   }
 
-  async function submitMove({ fromRow, fromCol, toRow, toCol }, movedPieceType, promotion) {
+    async function submitMove(move, movedPieceType, promotion) {
+    const { fromRow, fromCol, toRow, toCol } = move;
     const historyBefore = history.length;
     const isCastling = movedPieceType === "KING" && Math.abs(toCol - fromCol) === 2;
+
+    const optimistic = buildOptimisticBoard(board, move, promotion);
+    applyStateAnimated({
+      board: optimistic.board,
+      turn: "BLACK",
+      gameState: "IN_PROGRESS",
+      drawReason: "NONE",
+      legalMoves: [],
+      checkingPiecePositions: [],
+      kingInCheckPosition: null,
+      capturedWhite: optimistic.captured ? [...capturedWhite, optimistic.captured] : capturedWhite,
+      capturedBlack,
+      canUndo: false,
+      history,
+      lastMove: move,
+    });
+    setSelected(null);
+    setMessage("");
+    if (promotion) playPromotionSound();
+    else if (optimistic.captured) playCaptureSound();
+    else if (isCastling) playCastleSound();
+    else playMoveSound(movedPieceType);
+
     let response;
     busyRef.current = true;
     setHint(null);
@@ -638,8 +684,8 @@ function App() {
       busyRef.current = false;
       setThinking(false);
     }
-    const { capturedCount, promoted } = applyStateAnimated(response.state);
-    setSelected(null);
+
+    const { capturedCount } = applyStateAnimated(response.state);
 
     if (response.result !== "SUCCESS") {
       setMessage(
@@ -649,8 +695,6 @@ function App() {
       );
       return;
     }
-
-    setMessage("");
 
     if (response.state.gameState === "CHECKMATE") {
       const userWon = response.state.turn !== USER_COLOR;
@@ -663,16 +707,9 @@ function App() {
     } else if (response.state.gameState === "CHECK") {
       triggerCheckChip("them");
       playCheckSound();
-    } else if (promoted) {
-      playPromotionSound();
-    } else if (capturedCount > 0) {
-      playCaptureSound();
-    } else {
-      if (isCastling) playCastleSound();
-      else playMoveSound(movedPieceType);
-      if ((response.state.history?.length ?? 0) >= historyBefore + 2) {
-        setTimeout(playAiMoveSound, 450);
-      }
+    } else if ((response.state.history?.length ?? 0) >= historyBefore + 2) {
+      if (capturedCount > 0) playCaptureSound();
+      else playAiMoveSound();
     }
   }
 
