@@ -197,9 +197,11 @@ Si falta alguno de estos archivos, el juego usa un sonido sintetizado equivalent
 
 **Integrantes del equipo**
 
-- _Nombre y apellido_
-- _Nombre y apellido_
-- _Nombre y apellido_
+- Micaela Cembal
+- Agustina Gryner
+- Lucia Keuyluian
+- Agostina Lopez
+- Valentina Salama
 
 **Materia:** Ingeniería de Software, UADE.
 
