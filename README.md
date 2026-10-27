@@ -162,7 +162,7 @@ El backend expone una API JSON en `http://localhost:8081/api` con CORS habilitad
 
 Convenciones del tablero: la fila 0 corresponde a las piezas blancas (jugador, Rosa), la fila 7 a las negras (computadora, Celeste) y la columna 0 a la columna `a`.
 
-> El servidor mantiene **una única partida en memoria**, compartida por todos los clientes conectados. Está pensado para uso local.
+> Cada navegador genera un identificador y lo envía en la cabecera `X-Session-Id`; el servidor mantiene **una partida independiente por identificador**, así que cada persona juega la suya. Las partidas viven en memoria: se pierden al reiniciar el servidor y las inactivas se descartan a los 30 minutos. Un pedido sin la cabecera usa una partida compartida por defecto.
 
 ## Inteligencia artificial
 
